@@ -75,5 +75,9 @@ class Animator:
         # Update overlay
         self._overlay.update_sprite(photo, x_off, y_off)
 
+        # Re-assert always-on-top every ~5 s (90 frames @ 18 fps)
+        if self._frame_index % 90 == 0:
+            self._overlay.maintain_topmost()
+
         # Schedule next frame
         self._after_id = self._root.after(FRAME_DELAY, self._tick)

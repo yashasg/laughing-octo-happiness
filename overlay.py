@@ -16,7 +16,15 @@ class OverlayWindow:
         self.window = tk.Toplevel(root)
         self.window.overrideredirect(True)
         self.window.attributes('-topmost', True)
-        self.window.attributes('-transparentcolor', TRANSPARENT_COLOR)
+
+        # Tk 9+ on macOS dropped -transparentcolor; use -transparent + systemTransparent instead.
+        try:
+            self.window.attributes('-transparentcolor', TRANSPARENT_COLOR)
+            canvas_bg = TRANSPARENT_COLOR
+        except tk.TclError:
+            self.window.attributes('-transparent', True)
+            self.window.configure(bg='systemTransparent')
+            canvas_bg = 'systemTransparent'
 
         screen_w = root.winfo_screenwidth()
         screen_h = root.winfo_screenheight()
@@ -26,7 +34,7 @@ class OverlayWindow:
 
         self.canvas = tk.Canvas(
             self.window, width=CANVAS_W, height=CANVAS_H,
-            bg=TRANSPARENT_COLOR, highlightthickness=0,
+            bg=canvas_bg, highlightthickness=0,
         )
         self.canvas.pack()
 
@@ -64,6 +72,11 @@ class OverlayWindow:
         """Update the status label shown in the context menu."""
         self._status_text = status_text
         self._menu.entryconfig(self._status_menu_index, label=f"Status: {status_text}")
+
+    def maintain_topmost(self):
+        """Re-assert always-on-top so macOS can't push the window behind others."""
+        self.window.attributes('-topmost', True)
+        self.window.lift()
 
     # ------------------------------------------------------------------
 

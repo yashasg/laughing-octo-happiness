@@ -7,6 +7,7 @@ based on GitHub Copilot CLI status:
   Red    = Busy (Copilot is processing)
 """
 
+import sys
 import tkinter as tk
 import threading
 from version import __version__
@@ -30,8 +31,9 @@ def main():
     monitor = StatusMonitor(on_status_change=animator.set_status)
     animator._monitor = monitor  # let animator read model/context info
 
-    # Set up system tray icon (in a separate thread)
-    tray_icon = setup_tray(shutdown_callback=None, animator=animator)
+    # Set up system tray icon — not supported on macOS (NSApplication must own
+    # the main thread, but tkinter already does).
+    tray_icon = None if sys.platform == 'darwin' else setup_tray(shutdown_callback=None, animator=animator)
 
     # Wire quit handler
     def shutdown():
