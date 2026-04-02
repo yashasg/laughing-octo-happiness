@@ -9,6 +9,7 @@ based on GitHub Copilot CLI status:
 
 import tkinter as tk
 import threading
+from version import __version__
 from config import CopilotStatus
 from sprite import SpriteRenderer
 from overlay import OverlayWindow
@@ -17,6 +18,7 @@ from status_monitor import StatusMonitor
 
 
 def main():
+    print(f"Copilot Buddy v{__version__}")
     # Create root window (hidden — only the overlay Toplevel is visible)
     root = tk.Tk()
     root.withdraw()

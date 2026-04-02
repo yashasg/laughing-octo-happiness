@@ -1,4 +1,3 @@
-import os
 from pathlib import Path
 from enum import Enum
 
@@ -24,7 +23,7 @@ DEFAULT_LABELS = {
 }
 
 # Paths
-COPILOT_STATE_DIR = Path(os.environ["USERPROFILE"]) / ".copilot" / "session-state"
+COPILOT_STATE_DIR = Path.home() / ".copilot" / "session-state"
 SPRITES_DIR = Path(__file__).parent / "sprites"
 
 # Spritesheet config

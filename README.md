@@ -19,10 +19,12 @@ A pixel-art desktop buddy that reflects your GitHub Copilot CLI session status i
 ## Requirements
 
 - Python 3.10+
-- Windows (uses `tkinter` transparent color and `USERPROFILE` environment variable)
+- Windows, macOS, or Linux
 - [GitHub Copilot CLI](https://docs.github.com/en/copilot) installed and configured
 
 ## Setup
+
+### Windows
 
 ```bat
 cd L:\watcher
@@ -36,6 +38,26 @@ Or use the included batch file:
 ```bat
 run.bat
 ```
+
+### macOS / Linux
+
+```bash
+chmod +x run.sh
+./run.sh
+```
+
+The script creates a virtual environment, installs dependencies, and launches the app.
+
+## Running Tests
+
+```bash
+pip install -r requirements-dev.txt
+python -m pytest tests/ -v
+```
+
+## Versioning
+
+This project uses [semantic versioning](https://semver.org/). The current version is defined in `version.py`.
 
 ## Dependencies
 
