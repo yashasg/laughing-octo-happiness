@@ -46,7 +46,9 @@ target_link_libraries(copilot-buddy-tests PRIVATE
 )
 
 if(APPLE)
-    target_compile_definitions(copilot-buddy-tests PRIVATE GL_SILENCE_DEPRECATION)
+    target_compile_definitions(copilot-buddy-tests PRIVATE
+        GL_SILENCE_DEPRECATION
+        _LIBCPP_REMOVE_TRANSITIVE_INCLUDES)
 elseif(UNIX)
     find_package(Threads REQUIRED)
     target_link_libraries(copilot-buddy-tests PRIVATE Threads::Threads)

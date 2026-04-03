@@ -107,9 +107,13 @@ add_custom_command(TARGET copilot-buddy POST_BUILD
     COMMENT "Copying resources to build directory"
 )
 
-# macOS: suppress deprecation warnings for OpenGL; link dmon's CoreServices
+# macOS: suppress deprecation warnings for OpenGL; link dmon's CoreServices.
+# _LIBCPP_REMOVE_TRANSITIVE_INCLUDES makes libc++ behave like libstdc++/MSVC —
+# each TU must include exactly the headers it uses, keeping builds consistent.
 if(APPLE)
-    target_compile_definitions(copilot-buddy PRIVATE GL_SILENCE_DEPRECATION)
+    target_compile_definitions(copilot-buddy PRIVATE
+        GL_SILENCE_DEPRECATION
+        _LIBCPP_REMOVE_TRANSITIVE_INCLUDES)
     target_link_libraries(copilot-buddy PRIVATE
         "-framework CoreFoundation" "-framework CoreServices")
 elseif(UNIX)
