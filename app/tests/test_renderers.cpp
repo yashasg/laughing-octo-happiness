@@ -1,4 +1,5 @@
 #include <gtest/gtest.h>
+#include <algorithm>
 #include <string>
 #include <vector>
 #include "sprite_renderer.h"
