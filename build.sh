@@ -26,6 +26,6 @@ echo "Build succeeded: $BUILD_DIR/copilot-buddy"
 if [ "$BUILD_TESTS" = "ON" ]; then
     cmake --build "$BUILD_DIR" --target copilot-buddy-tests --parallel
     "$BUILD_DIR/tests/copilot-buddy-tests" \
-        --gtest_output="xml:$REPO_ROOT/test-results.xml"
+        --gtest_output="xml:$BUILD_DIR/test-results.xml"
     echo "Tests passed."
 fi

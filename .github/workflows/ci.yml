@@ -45,14 +45,14 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: test-results-linux
-          path: test-results.xml
+          path: app/build/test-results.xml
 
       - name: Report test results
         if: always()
         uses: dorny/test-reporter@v1
         with:
           name: Tests (Linux)
-          path: test-results.xml
+          path: app/build/test-results.xml
           reporter: java-junit
 
   build-windows:
@@ -92,13 +92,13 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: test-results-windows
-          path: ${{ github.workspace }}/test-results.xml
+          path: ${{ github.workspace }}/app/build/test-results.xml
 
       - name: Report test results
         if: always()
         uses: dorny/test-reporter@v1
         with:
           name: Tests (Windows)
-          path: ${{ github.workspace }}/test-results.xml
+          path: ${{ github.workspace }}/app/build/test-results.xml
           reporter: java-junit
 
