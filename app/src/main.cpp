@@ -3,11 +3,25 @@
 #include "sprite_renderer.h"
 
 #include "raylib.h"
+#include "GLFW/glfw3.h"
 
 #include <iostream>
 #include <string>
 #include <algorithm>
-#include <cmath>
+
+// Raw GLFW mouse-button callback chained after raylib's own callback.
+// Needed because on macOS borderless floating windows, right-click events
+// can be consumed before raylib's input poller sees them.
+static GLFWmousebuttonfun g_prev_mouse_cb = nullptr;
+
+static void mouse_button_cb(GLFWwindow* w, int button, int action, int mods) {
+    // Forward to raylib first so left-click / drag still works.
+    if (g_prev_mouse_cb) g_prev_mouse_cb(w, button, action, mods);
+
+    if (button == GLFW_MOUSE_BUTTON_RIGHT && action == GLFW_PRESS) {
+        glfwSetWindowShouldClose(w, GLFW_TRUE);
+    }
+}
 
 int main() {
     std::cout << "Copilot Buddy (C++) v0.1.0\n";
@@ -19,7 +33,13 @@ int main() {
                  | FLAG_WINDOW_UNDECORATED | FLAG_WINDOW_ALWAYS_RUN);
     InitWindow(CANVAS_W, CANVAS_H, "Copilot Buddy");
     SetTargetFPS(TARGET_FPS);
-    SetExitKey(KEY_NULL); // disable ESC quit so we control shutdown ourselves
+    SetExitKey(KEY_ESCAPE); // ESC quits (also caught manually in loop for clean shutdown)
+
+    // Install raw GLFW right-click callback (chains raylib's callback so left-click still works)
+    {
+        GLFWwindow* glfwWin = glfwGetCurrentContext();
+        g_prev_mouse_cb = glfwSetMouseButtonCallback(glfwWin, mouse_button_cb);
+    }
 
     // Position bottom-right of primary monitor
     int monIdx = GetCurrentMonitor();
@@ -72,8 +92,9 @@ int main() {
                                         static_cast<float>(ctx_bytes)
                                         / static_cast<float>(CONTEXT_MAX_BYTES));
 
-        // 2. Right-click → quit
-        if (IsMouseButtonPressed(MOUSE_RIGHT_BUTTON)) {
+        // 2. Quit: Q or ESC (right-click is handled by the GLFW callback above,
+        //    which sets WindowShouldClose directly)
+        if (IsKeyPressed(KEY_Q) || IsKeyPressed(KEY_ESCAPE)) {
             break;
         }
 

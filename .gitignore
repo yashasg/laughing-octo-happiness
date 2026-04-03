@@ -1,5 +1,6 @@
 # FetchContent / CMake download cache
 app/build/
+app/build-tests/
 app/.cache/
 CMakeCache.txt
 CMakeFiles/
@@ -7,6 +8,13 @@ cmake_install.cmake
 compile_commands.json
 *.cmake
 !app/CMakeLists.txt
+!app/tests/CMakeLists.txt
+
+# Test results
+test-results.xml
+
+# Google Test FetchContent cache
+_deps/
 
 # Compiled binaries
 copilot-buddy

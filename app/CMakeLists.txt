@@ -77,6 +77,7 @@ add_executable(copilot-buddy
     src/main.cpp
     src/status_monitor.cpp
     src/sprite_renderer.cpp
+    src/event_parser.cpp
 )
 
 target_include_directories(copilot-buddy PRIVATE
@@ -106,4 +107,10 @@ elseif(UNIX)
     # dmon uses pthreads on Linux
     find_package(Threads REQUIRED)
     target_link_libraries(copilot-buddy PRIVATE Threads::Threads)
+endif()
+
+# ---------- Tests ----------
+option(BUILD_TESTS "Build unit tests" OFF)
+if(BUILD_TESTS)
+    add_subdirectory(tests)
 endif()

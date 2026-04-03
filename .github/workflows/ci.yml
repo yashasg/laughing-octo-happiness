@@ -10,6 +10,9 @@ jobs:
   build-linux:
     name: Build (Linux)
     runs-on: ubuntu-latest
+    permissions:
+      checks: write
+      pull-requests: write
     steps:
       - uses: actions/checkout@v4
 
@@ -24,7 +27,7 @@ jobs:
       - name: Build
         run: |
           chmod +x build.sh
-          ./build.sh
+          ./build.sh -test
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -32,17 +35,51 @@ jobs:
           name: copilot-buddy-linux
           path: app/build/copilot-buddy
 
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-linux
+          path: test-results.xml
+
+      - name: Report test results
+        if: always()
+        uses: dorny/test-reporter@v1
+        with:
+          name: Tests (Linux)
+          path: test-results.xml
+          reporter: java-junit
+
   build-windows:
     name: Build (Windows)
     runs-on: windows-latest
+    permissions:
+      checks: write
+      pull-requests: write
     steps:
       - uses: actions/checkout@v4
 
       - name: Build
-        run: build.bat
+        run: build.bat -test
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: copilot-buddy-windows
           path: app\build\Release\copilot-buddy.exe
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-windows
+          path: test-results.xml
+
+      - name: Report test results
+        if: always()
+        uses: dorny/test-reporter@v1
+        with:
+          name: Tests (Windows)
+          path: test-results.xml
+          reporter: java-junit
+
