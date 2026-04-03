@@ -1,8 +1,6 @@
-# C++ build output
+# FetchContent / CMake download cache
 app/build/
 app/.cache/
-
-# CMake generated files
 CMakeCache.txt
 CMakeFiles/
 cmake_install.cmake
@@ -23,9 +21,6 @@ copilot-buddy.exe
 *.pdb
 *.ilk
 *.exp
-
-# FetchContent / external downloads (raylib etc.)
-app/external/
 
 # IDE files
 .vscode/

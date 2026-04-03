@@ -5,35 +5,72 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-# ---------- Dependencies via FetchContent ----------
+# ---------- raylib 5.5: pre-built official release binaries ----------
+# Download the pre-built static library for the current platform instead of
+# cloning the full source repo and compiling from scratch.
 include(FetchContent)
 
-# raylib 5.5
-FetchContent_Declare(raylib
-    GIT_REPOSITORY https://github.com/raysan5/raylib.git
-    GIT_TAG 5.5
-    GIT_SHALLOW TRUE
-)
-set(BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
-set(BUILD_GAMES OFF CACHE BOOL "" FORCE)
+if(APPLE)
+    set(RAYLIB_URL "https://github.com/raysan5/raylib/releases/download/5.5/raylib-5.5_macos.tar.gz")
+    set(RAYLIB_LIB_NAME "libraylib.a")
+elseif(WIN32)
+    if(MSVC)
+        set(RAYLIB_URL "https://github.com/raysan5/raylib/releases/download/5.5/raylib-5.5_win64_msvc16.zip")
+        set(RAYLIB_LIB_NAME "raylib.lib")
+    else()
+        set(RAYLIB_URL "https://github.com/raysan5/raylib/releases/download/5.5/raylib-5.5_win64_mingw-w64.zip")
+        set(RAYLIB_LIB_NAME "libraylib.a")
+    endif()
+else()
+    set(RAYLIB_URL "https://github.com/raysan5/raylib/releases/download/5.5/raylib-5.5_linux_amd64.tar.gz")
+    set(RAYLIB_LIB_NAME "libraylib.a")
+endif()
+
+FetchContent_Declare(raylib URL ${RAYLIB_URL} DOWNLOAD_EXTRACT_TIMESTAMP ON)
 FetchContent_MakeAvailable(raylib)
 
-# nlohmann/json (header-only)
-FetchContent_Declare(json
-    GIT_REPOSITORY https://github.com/nlohmann/json.git
-    GIT_TAG v3.11.3
-    GIT_SHALLOW TRUE
-)
-FetchContent_MakeAvailable(json)
+# Locate the static lib and include dir inside the extracted archive.
+# Archives have a top-level platform folder (e.g. raylib-5.5_macos/), so we
+# search one level deep to stay robust across platforms.
+file(GLOB_RECURSE _RAYLIB_LIB_CANDIDATES
+    LIST_DIRECTORIES false
+    "${raylib_SOURCE_DIR}/${RAYLIB_LIB_NAME}"
+    "${raylib_SOURCE_DIR}/*/${RAYLIB_LIB_NAME}")
+if(NOT _RAYLIB_LIB_CANDIDATES)
+    message(FATAL_ERROR "raylib static library (${RAYLIB_LIB_NAME}) not found under ${raylib_SOURCE_DIR}")
+endif()
+list(GET _RAYLIB_LIB_CANDIDATES 0 _RAYLIB_LIB_PATH)
+get_filename_component(_RAYLIB_LIB_DIR "${_RAYLIB_LIB_PATH}" DIRECTORY)
+get_filename_component(_RAYLIB_PREBUILT_DIR "${_RAYLIB_LIB_DIR}" DIRECTORY)
+set(_RAYLIB_INCLUDE_DIR "${_RAYLIB_PREBUILT_DIR}/include")
 
-# efsw (cross-platform file watcher)
-FetchContent_Declare(efsw
-    GIT_REPOSITORY https://github.com/SpartanJ/efsw.git
-    GIT_TAG 1.4.1
-    GIT_SHALLOW TRUE
-)
-set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
-FetchContent_MakeAvailable(efsw)
+add_library(raylib STATIC IMPORTED GLOBAL)
+set_target_properties(raylib PROPERTIES
+    IMPORTED_LOCATION "${_RAYLIB_LIB_PATH}"
+    INTERFACE_INCLUDE_DIRECTORIES "${_RAYLIB_INCLUDE_DIR}")
+
+# Platform system libraries required by raylib
+if(APPLE)
+    set_property(TARGET raylib APPEND PROPERTY INTERFACE_LINK_LIBRARIES
+        "-framework OpenGL" "-framework Cocoa" "-framework IOKit" "-framework CoreVideo")
+elseif(WIN32)
+    set_property(TARGET raylib APPEND PROPERTY INTERFACE_LINK_LIBRARIES
+        opengl32 gdi32 winmm)
+else()
+    set_property(TARGET raylib APPEND PROPERTY INTERFACE_LINK_LIBRARIES
+        GL m pthread dl rt X11)
+endif()
+
+# ---------- nlohmann/json 3.11.3: vendored single header ----------
+# externals/nlohmann/json.hpp — no download, no compilation.
+add_library(nlohmann_json INTERFACE)
+target_include_directories(nlohmann_json INTERFACE
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/externals>)
+add_library(nlohmann_json::nlohmann_json ALIAS nlohmann_json)
+
+# ---------- dmon: vendored single header ----------
+# externals/dmon/dmon.h — no download, no separate compilation.
+# DMON_IMPL is defined in status_monitor.cpp which owns the implementation.
 
 # ---------- Main executable ----------
 add_executable(copilot-buddy
@@ -42,12 +79,14 @@ add_executable(copilot-buddy
     src/sprite_renderer.cpp
 )
 
-target_include_directories(copilot-buddy PRIVATE include)
+target_include_directories(copilot-buddy PRIVATE
+    include
+    externals
+    externals/glfw/include)
 
 target_link_libraries(copilot-buddy PRIVATE
     raylib
     nlohmann_json::nlohmann_json
-    efsw
 )
 
 # Copy sprite assets next to binary
@@ -58,7 +97,13 @@ add_custom_command(TARGET copilot-buddy POST_BUILD
     COMMENT "Copying resources to build directory"
 )
 
-# macOS: suppress deprecation warnings for OpenGL
+# macOS: suppress deprecation warnings for OpenGL; link dmon's CoreServices
 if(APPLE)
     target_compile_definitions(copilot-buddy PRIVATE GL_SILENCE_DEPRECATION)
+    target_link_libraries(copilot-buddy PRIVATE
+        "-framework CoreFoundation" "-framework CoreServices")
+elseif(UNIX)
+    # dmon uses pthreads on Linux
+    find_package(Threads REQUIRED)
+    target_link_libraries(copilot-buddy PRIVATE Threads::Threads)
 endif()
