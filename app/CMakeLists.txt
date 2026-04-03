@@ -3,6 +3,12 @@ project(copilot-buddy VERSION 0.1.0 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# Use static runtime (/MT) on MSVC/clang-cl to match setup-googletest's GTest build.
+if(MSVC)
+    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+endif()
+
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # ---------- raylib 5.5: pre-built official release binaries ----------
@@ -93,6 +99,10 @@ target_link_libraries(copilot-buddy PRIVATE
 target_compile_definitions(copilot-buddy PRIVATE
     COPILOT_BUDDY_VERSION="${PROJECT_VERSION}"
 )
+
+if(MSVC)
+    target_compile_definitions(copilot-buddy PRIVATE _CRT_SECURE_NO_WARNINGS)
+endif()
 
 # Copy sprite assets next to binary
 add_custom_command(TARGET copilot-buddy POST_BUILD

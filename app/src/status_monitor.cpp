@@ -1,6 +1,11 @@
 #include "status_monitor.h"
 #include "event_parser.h"
 
+// Prevent Windows SDK headers from redefining names that raylib already defines.
+#ifdef _WIN32
+#  define NOGDI   // excludes Rectangle and other GDI names
+#  define NOUSER  // excludes ShowCursor, LoadImage and other USER names
+#endif
 #define DMON_IMPL
 #include <dmon/dmon.h>
 #include <nlohmann/json.hpp>
