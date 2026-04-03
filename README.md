@@ -18,26 +18,12 @@ A pixel-art desktop buddy that reflects your GitHub Copilot CLI session status i
 
 ## Requirements
 
-- Python 3.10+
+- CMake 3.15+
+- A C++17 compiler (clang++ on macOS, MSVC or MinGW on Windows, g++ on Linux)
 - Windows, macOS, or Linux
 - [GitHub Copilot CLI](https://docs.github.com/en/copilot) installed and configured
 
 ## Setup
-
-### Windows
-
-```bat
-cd L:\watcher
-python -m venv .venv
-.venv\Scripts\pip.exe install -r requirements.txt
-.venv\Scripts\python.exe main.py
-```
-
-Or use the included batch file:
-
-```bat
-run.bat
-```
 
 ### macOS / Linux
 
@@ -46,37 +32,40 @@ chmod +x run.sh
 ./run.sh
 ```
 
-The script creates a virtual environment, installs dependencies, and launches the app.
+The script builds the app with CMake and launches it.
 
-## Running Tests
+### Windows
 
-```bash
-pip install -r requirements-dev.txt
-python -m pytest tests/ -v
+```bat
+run.bat
 ```
+
+Builds with CMake (Release) and runs the executable.
 
 ## Versioning
 
-This project uses [semantic versioning](https://semver.org/). The current version is defined in `version.py`.
+This project uses [semantic versioning](https://semver.org/). The version is defined in `app/CMakeLists.txt`.
 
 ## Dependencies
 
-| Package    | Purpose                              |
-|------------|--------------------------------------|
-| `Pillow`   | Spritesheet rendering & compositing  |
-| `watchdog` | File system event monitoring         |
-| `pystray`  | System tray icon                     |
+| Library          | Purpose                                      |
+|------------------|----------------------------------------------|
+| `raylib 5.5`     | Window, rendering, spritesheet animation     |
+| `nlohmann/json`  | Parsing `events.jsonl`                       |
+| `dmon`           | File system watching (vendored single header)|
+
+raylib is downloaded automatically by CMake at build time.
 
 ## How It Works
 
-Copilot Buddy monitors `~/.copilot/session-state/` for active sessions. It uses **watchdog** to watch for changes to `events.jsonl` files (with a polling fallback) and parses the tail of the event log to determine:
+Copilot Buddy monitors `~/.copilot/session-state/` for active sessions. It uses **dmon** to watch for changes to `events.jsonl` files (with a polling fallback) and parses the tail of the event log to determine:
 
 - **Status** — derived from event types like `assistant.turn_start` (busy), `assistant.turn_end` (waiting), `session.task_complete` (idle)
 - **Intent text** — extracted from `report_intent` tool calls
 - **Model name** — from `session.start` events
 - **Context usage** — approximated by `events.jsonl` file size
 
-The overlay renders animated sprites with a speech bubble and info bar using Pillow, displayed in a borderless transparent tkinter window.
+The overlay renders animated sprites with a speech bubble and info bar using raylib, displayed in a borderless transparent window.
 
 ## License
 
