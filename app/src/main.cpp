@@ -1,6 +1,8 @@
 #include "config.h"
 #include "status_monitor.h"
 #include "sprite_renderer.h"
+#include "text_renderer.h"
+#include "info_renderer.h"
 
 #include "raylib.h"
 #include "GLFW/glfw3.h"
@@ -53,8 +55,12 @@ int main() {
     // Load resources
     // -----------------------------------------------------------------------
     SpriteRenderer renderer;
+    TextRenderer   text_renderer;
+    InfoRenderer   info_renderer;
     std::string base = GetApplicationDirectory();
     renderer.load(base + "resources/IDLE.png", base + "resources/RUN.png");
+    text_renderer.load();
+    info_renderer.load();
 
     // -----------------------------------------------------------------------
     // Status monitor (background threads, thread-safe getters)
@@ -126,7 +132,13 @@ int main() {
         // 6. Draw
         BeginDrawing();
         ClearBackground(BLANK);
-        renderer.draw(status, status_text, model_name, ctx_ratio);
+        const std::string& bubble_text = status_text.empty()
+            ? std::string(status_label(status))
+            : status_text;
+        text_renderer.draw_bubble(status, bubble_text);
+        renderer.draw(status);
+        text_renderer.draw_model_name(model_name);
+        info_renderer.draw(ctx_ratio);
         EndDrawing();
     }
 

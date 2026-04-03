@@ -78,6 +78,9 @@ add_executable(copilot-buddy
     src/main.cpp
     src/status_monitor.cpp
     src/sprite_renderer.cpp
+    src/anim_state.cpp
+    src/text_renderer.cpp
+    src/info_renderer.cpp
     src/event_parser.cpp
 )
 

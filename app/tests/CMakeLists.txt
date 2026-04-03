@@ -15,34 +15,41 @@ if(NOT GTest_FOUND)
     FetchContent_MakeAvailable(googletest)
 endif()
 
+# Retrieve raylib headers (for type definitions); the mock provides all implementations.
+get_target_property(_RAYLIB_INCLUDE_DIR raylib INTERFACE_INCLUDE_DIRECTORIES)
+
 add_executable(copilot-buddy-tests
     test_config.cpp
     test_event_parser.cpp
     test_find_session.cpp
+    test_anim_state.cpp
+    test_render_logic.cpp
+    test_renderers.cpp
+    raylib_mock.cpp
     ../src/event_parser.cpp
+    ../src/anim_state.cpp
+    ../src/sprite_renderer.cpp
+    ../src/text_renderer.cpp
+    ../src/info_renderer.cpp
 )
 
 target_include_directories(copilot-buddy-tests PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
     ${CMAKE_CURRENT_SOURCE_DIR}/../externals
+    ${_RAYLIB_INCLUDE_DIR}
 )
 
+# Link against GTest only — raylib_mock.cpp provides all GPU function stubs.
 target_link_libraries(copilot-buddy-tests PRIVATE
     GTest::gtest_main
     nlohmann_json::nlohmann_json
-    raylib
 )
 
 if(APPLE)
     target_compile_definitions(copilot-buddy-tests PRIVATE GL_SILENCE_DEPRECATION)
-    target_link_libraries(copilot-buddy-tests PRIVATE
-        "-framework CoreFoundation" "-framework CoreServices"
-        "-framework OpenGL" "-framework Cocoa" "-framework IOKit" "-framework CoreVideo")
-elseif(WIN32)
-    target_link_libraries(copilot-buddy-tests PRIVATE opengl32 gdi32 winmm)
-else()
+elseif(UNIX)
     find_package(Threads REQUIRED)
-    target_link_libraries(copilot-buddy-tests PRIVATE Threads::Threads GL m dl rt X11)
+    target_link_libraries(copilot-buddy-tests PRIVATE Threads::Threads)
 endif()
 
 include(GoogleTest)
