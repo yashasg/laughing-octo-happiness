@@ -38,21 +38,21 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: copilot-buddy-linux
-          path: app/build/copilot-buddy
+          path: ${{ github.workspace }}/app/build/copilot-buddy
 
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: test-results-linux
-          path: app/build/test-results.xml
+          path: ${{ github.workspace }}/app/build/test-results.xml
 
       - name: Report test results
         if: always()
         uses: dorny/test-reporter@v1
         with:
           name: Tests (Linux)
-          path: app/build/test-results.xml
+          path: ${{ github.workspace }}/app/build/test-results.xml
           reporter: java-junit
 
   build-windows:
@@ -75,7 +75,6 @@ jobs:
           install: >-
             mingw-w64-x86_64-clang
             mingw-w64-x86_64-cmake
-            mingw-w64-x86_64-ninja
             mingw-w64-x86_64-gtest
 
       - name: Build
@@ -85,7 +84,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: copilot-buddy-windows
-          path: app/build/copilot-buddy.exe
+          path: ${{ github.workspace }}/app/build/copilot-buddy.exe
 
       - name: Upload test results
         if: always()
