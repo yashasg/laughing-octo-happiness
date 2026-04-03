@@ -3,4 +3,4 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-exec "$SCRIPT_DIR/app/build_and_run.sh"
+bash "$SCRIPT_DIR/app/build_and_run.sh"

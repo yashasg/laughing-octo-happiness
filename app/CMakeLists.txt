@@ -90,6 +90,10 @@ target_link_libraries(copilot-buddy PRIVATE
     nlohmann_json::nlohmann_json
 )
 
+target_compile_definitions(copilot-buddy PRIVATE
+    COPILOT_BUDDY_VERSION="${PROJECT_VERSION}"
+)
+
 # Copy sprite assets next to binary
 add_custom_command(TARGET copilot-buddy POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory

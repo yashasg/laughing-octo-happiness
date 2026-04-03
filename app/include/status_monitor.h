@@ -7,8 +7,7 @@
 #include <thread>
 #include <functional>
 #include <memory>
-
-namespace efsw { class FileWatcher; }
+#include <cstdint>
 
 /// Monitors ~/.copilot/session-state/ for session activity.
 /// Runs a filesystem watcher + polling fallback on background threads.
@@ -29,9 +28,10 @@ public:
     std::string   model_name() const;
     size_t        context_bytes() const;
 
+    void check_and_notify();  // also called from dmon's background thread
+
 private:
     void poll_loop();
-    void check_and_notify();
     std::string find_active_session() const;
     void parse_status(const std::string& session_dir);
     void scan_for_model(const std::string& events_path);
@@ -46,7 +46,8 @@ private:
 
     std::atomic<bool> m_running{false};
     std::unique_ptr<std::thread> m_poll_thread;
-    std::unique_ptr<efsw::FileWatcher> m_watcher;
+    uint32_t m_watch_id{0};         // dmon_watch_id.id; 0 = not watching
+    bool m_dmon_initialized{false}; // true iff dmon_init() has been called
 
     std::string m_state_dir;  // resolved path to ~/.copilot/session-state
 };

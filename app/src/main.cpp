@@ -17,14 +17,15 @@ static GLFWmousebuttonfun g_prev_mouse_cb = nullptr;
 static void mouse_button_cb(GLFWwindow* w, int button, int action, int mods) {
     // Forward to raylib first so left-click / drag still works.
     if (g_prev_mouse_cb) g_prev_mouse_cb(w, button, action, mods);
-
-    if (button == GLFW_MOUSE_BUTTON_RIGHT && action == GLFW_PRESS) {
-        glfwSetWindowShouldClose(w, GLFW_TRUE);
-    }
+    // Right-click is reserved for a future context menu; do not quit here.
+    (void)button; (void)action; (void)mods;
 }
 
 int main() {
-    std::cout << "Copilot Buddy (C++) v0.1.0\n";
+#ifndef COPILOT_BUDDY_VERSION
+#define COPILOT_BUDDY_VERSION "dev"
+#endif
+    std::cout << "Copilot Buddy (C++) v" COPILOT_BUDDY_VERSION "\n";
 
     // -----------------------------------------------------------------------
     // Window setup
@@ -92,8 +93,7 @@ int main() {
                                         static_cast<float>(ctx_bytes)
                                         / static_cast<float>(CONTEXT_MAX_BYTES));
 
-        // 2. Quit: Q or ESC (right-click is handled by the GLFW callback above,
-        //    which sets WindowShouldClose directly)
+        // 2. Quit: Q or ESC
         if (IsKeyPressed(KEY_Q) || IsKeyPressed(KEY_ESCAPE)) {
             break;
         }
