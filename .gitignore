@@ -1,28 +1,41 @@
-# Virtual environments
-.venv/
-venv/
-env/
-ENV/
+# C++ build output
+app/build/
+app/.cache/
 
-# Python bytecode
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
+# CMake generated files
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+compile_commands.json
+*.cmake
+!app/CMakeLists.txt
 
-# Environment variables
-.env
+# Compiled binaries
+copilot-buddy
+copilot-buddy.exe
+*.o
+*.obj
+*.a
+*.lib
+*.so
+*.dylib
+*.dll
+*.pdb
+*.ilk
+*.exp
 
-# Packaging
-*.egg-info/
-dist/
-build/
+# FetchContent / external downloads (raylib etc.)
+app/external/
 
 # IDE files
 .vscode/
 .idea/
+*.xcodeproj/
+*.xcworkspace/
 
 # OS files
 Thumbs.db
 .DS_Store
-app/build/
+
+# Environment variables
+.env
