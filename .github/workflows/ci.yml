@@ -32,7 +32,11 @@ jobs:
       - name: Build
         run: |
           chmod +x build.sh
-          ./build.sh -test
+          ./build.sh -build-only
+
+      - name: Run tests
+        id: run-tests
+        run: app/build/tests/copilot-buddy-tests --gtest_output="xml:app/build/test-results.xml"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -41,14 +45,14 @@ jobs:
           path: app/build/copilot-buddy
 
       - name: Upload test results
-        if: always()
+        if: steps.run-tests.outcome != 'skipped'
         uses: actions/upload-artifact@v4
         with:
           name: test-results-linux
           path: app/build/test-results.xml
 
       - name: Report test results
-        if: always()
+        if: steps.run-tests.outcome != 'skipped'
         uses: dorny/test-reporter@v1
         with:
           name: Tests (Linux)
@@ -78,7 +82,15 @@ jobs:
             mingw-w64-x86_64-gtest
 
       - name: Build
-        run: ./build.sh -test
+        run: ./build.sh -build-only
+
+      - name: Run tests
+        id: run-tests
+        run: |
+          TEST_BIN="app/build/tests/copilot-buddy-tests"
+          [ -f "${TEST_BIN}.exe" ] && TEST_BIN="${TEST_BIN}.exe"
+          RESULTS_PATH="$(cygpath -w app/build)/test-results.xml"
+          "$TEST_BIN" --gtest_output="xml:$RESULTS_PATH"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -87,14 +99,14 @@ jobs:
           path: app/build/copilot-buddy.exe
 
       - name: Upload test results
-        if: always()
+        if: steps.run-tests.outcome != 'skipped'
         uses: actions/upload-artifact@v4
         with:
           name: test-results-windows
           path: app/build/test-results.xml
 
       - name: Report test results
-        if: always()
+        if: steps.run-tests.outcome != 'skipped'
         uses: dorny/test-reporter@v1
         with:
           name: Tests (Windows)

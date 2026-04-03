@@ -1,16 +1,19 @@
 #!/usr/bin/env bash
 # CI build script — Linux / macOS
-# Usage: ./build.sh [-test]
-#   -test  also build and run unit tests, writing results to test-results.xml
+# Usage: ./build.sh [-test] [-build-only]
+#   -test        build and run unit tests, writing results to test-results.xml
+#   -build-only  build app + test binary but do NOT run tests
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BUILD_DIR="$REPO_ROOT/app/build"
 BUILD_TESTS=OFF
+RUN_TESTS=ON
 
 for arg in "$@"; do
     case "$arg" in
-        -test) BUILD_TESTS=ON ;;
+        -test)       BUILD_TESTS=ON ;;
+        -build-only) BUILD_TESTS=ON; RUN_TESTS=OFF ;;
     esac
 done
 
@@ -25,7 +28,9 @@ echo "Build succeeded: $BUILD_DIR/copilot-buddy"
 
 if [ "$BUILD_TESTS" = "ON" ]; then
     cmake --build "$BUILD_DIR" --target copilot-buddy-tests --parallel
-    # On Windows (MSYS2) the binary has a .exe suffix
+fi
+
+if [ "$BUILD_TESTS" = "ON" ] && [ "$RUN_TESTS" = "ON" ]; then
     TEST_BIN="$BUILD_DIR/tests/copilot-buddy-tests"
     [ -f "${TEST_BIN}.exe" ] && TEST_BIN="${TEST_BIN}.exe"
     # Native Windows binaries don't translate POSIX paths; use cygpath if available
