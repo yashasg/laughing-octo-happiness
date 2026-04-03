@@ -24,6 +24,11 @@ jobs:
             libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev \
             libgl1-mesa-dev libglu1-mesa-dev
 
+      - name: Setup GoogleTest
+        uses: Bacondish2023/setup-googletest@v1
+        with:
+          tag: v1.14.0
+
       - name: Build
         run: |
           chmod +x build.sh
@@ -58,6 +63,13 @@ jobs:
       pull-requests: write
     steps:
       - uses: actions/checkout@v4
+
+      - uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Setup GoogleTest
+        uses: Bacondish2023/setup-googletest@v1
+        with:
+          tag: v1.14.0
 
       - name: Build
         run: build.bat -test
