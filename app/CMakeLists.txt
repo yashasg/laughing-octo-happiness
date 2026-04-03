@@ -81,6 +81,7 @@ add_executable(copilot-buddy
     src/anim_state.cpp
     src/text_renderer.cpp
     src/info_renderer.cpp
+    src/input_handler.cpp
     src/event_parser.cpp
 )
 
