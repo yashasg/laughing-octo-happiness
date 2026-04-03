@@ -61,24 +61,30 @@ jobs:
     permissions:
       checks: write
       pull-requests: write
+    defaults:
+      run:
+        shell: msys2 {0}
     steps:
       - uses: actions/checkout@v4
 
-      - uses: ilammy/msvc-dev-cmd@v1
-
-      - name: Setup GoogleTest
-        uses: Bacondish2023/setup-googletest@v1
+      - uses: msys2/setup-msys2@v2
         with:
-          tag: v1.14.0
+          msystem: MINGW64
+          update: false
+          install: >-
+            mingw-w64-x86_64-clang
+            mingw-w64-x86_64-cmake
+            mingw-w64-x86_64-ninja
+            mingw-w64-x86_64-gtest
 
       - name: Build
-        run: .\build.bat -test
+        run: ./build.sh -test
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: copilot-buddy-windows
-          path: app\build\Release\copilot-buddy.exe
+          path: app/build/copilot-buddy.exe
 
       - name: Upload test results
         if: always()
