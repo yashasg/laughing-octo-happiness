@@ -1,5 +1,5 @@
 @echo off
-:: CI build script — Windows (MSVC)
+:: CI build script — Windows (Clang/LLVM via ClangCL toolset)
 :: Usage: build.bat [-test]
 ::   -test  also build and run unit tests, writing results to test-results.xml
 setlocal enabledelayedexpansion
@@ -12,7 +12,7 @@ for %%A in (%*) do (
     if "%%A"=="-test" set BUILD_TESTS=ON
 )
 
-cmake -S "%REPO_ROOT%app" -B "%BUILD_DIR%" -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=%BUILD_TESTS%
+cmake -S "%REPO_ROOT%app" -B "%BUILD_DIR%" -T ClangCL -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=%BUILD_TESTS%
 if errorlevel 1 exit /b 1
 
 cmake --build "%BUILD_DIR%" --config Release --parallel

@@ -16,6 +16,8 @@ done
 
 cmake -S "$REPO_ROOT/app" -B "$BUILD_DIR" \
     -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_C_COMPILER=clang \
+    -DCMAKE_CXX_COMPILER=clang++ \
     -DBUILD_TESTS="$BUILD_TESTS"
 cmake --build "$BUILD_DIR" --parallel
 
