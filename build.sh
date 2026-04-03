@@ -25,7 +25,9 @@ echo "Build succeeded: $BUILD_DIR/copilot-buddy"
 
 if [ "$BUILD_TESTS" = "ON" ]; then
     cmake --build "$BUILD_DIR" --target copilot-buddy-tests --parallel
-    "$BUILD_DIR/tests/copilot-buddy-tests" \
-        --gtest_output="xml:$BUILD_DIR/test-results.xml"
+    # On Windows (MSYS2) the binary has a .exe suffix
+    TEST_BIN="$BUILD_DIR/tests/copilot-buddy-tests"
+    [ -f "${TEST_BIN}.exe" ] && TEST_BIN="${TEST_BIN}.exe"
+    "$TEST_BIN" --gtest_output="xml:$BUILD_DIR/test-results.xml"
     echo "Tests passed."
 fi
