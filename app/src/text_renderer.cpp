@@ -121,6 +121,13 @@ void TextRenderer::draw_model_name(const std::string& model_name) const {
     if (static_cast<int>(name.size()) > 30) name = name.substr(0, 27) + "...";
     Vector2 name_sz = MeasureTextEx(small, name.c_str(), small_size, 1.0f);
     float tx = (CANVAS_W - name_sz.x) / 2.0f;
+
+    // Opaque background so text is readable over the translucent window
+    float pad_x = 6.0f, pad_y = 2.0f;
+    Rectangle name_bg = { tx - pad_x, static_cast<float>(INFO_Y) - pad_y,
+                          name_sz.x + pad_x * 2.0f, name_sz.y + pad_y * 2.0f };
+    DrawRectangleRounded(name_bg, 0.4f, 6, { 20, 20, 30, 255 });
+
     DrawTextEx(small, name.c_str(), { tx, static_cast<float>(INFO_Y) },
-               small_size, 1.0f, { 255, 255, 255, 240 });
+               small_size, 1.0f, { 255, 255, 255, 255 });
 }

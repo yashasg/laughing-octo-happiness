@@ -94,15 +94,15 @@ void InfoRenderer::draw(float ratio, size_t current_tokens, size_t token_limit) 
     Vector2 ctx_sz = MeasureTextEx(lbl, ctx, lbl_size, 1.0f);
     float ltx = (CANVAS_W - ctx_sz.x) / 2.0f;
     DrawTextEx(lbl, ctx, { ltx, static_cast<float>(BAR_LABEL_Y) },
-               lbl_size, 1.0f, { 160, 160, 180, 200 });
+               lbl_size, 1.0f, { 160, 160, 180, 255 });
 
     // Health bar background
     float bar_left = (CANVAS_W - BAR_WIDTH) / 2.0f;
     float bar_rnd  = std::min(1.0f, (2.0f * BAR_RADIUS) / static_cast<float>(BAR_HEIGHT));
     Rectangle bg   = { bar_left, static_cast<float>(BAR_Y),
                         static_cast<float>(BAR_WIDTH), static_cast<float>(BAR_HEIGHT) };
-    DrawRectangleRounded(bg, bar_rnd, 8, { 30, 30, 40, 160 });
-    DrawRectangleRoundedLinesEx(bg, bar_rnd, 8, 1.0f, { 60, 60, 80, 200 });
+    DrawRectangleRounded(bg, bar_rnd, 8, { 30, 30, 40, 255 });
+    DrawRectangleRoundedLinesEx(bg, bar_rnd, 8, 1.0f, { 60, 60, 80, 255 });
 
     // Health bar fill — green (low) → yellow (mid) → red (high)
     if (ratio > 0.005f) {
