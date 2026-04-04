@@ -11,6 +11,7 @@ jobs:
     name: Build (Linux)
     runs-on: Linux
     permissions:
+      contents: read
       checks: write
       pull-requests: write
     steps:
@@ -68,6 +69,7 @@ jobs:
     name: Build (Windows)
     runs-on: Windows
     permissions:
+      contents: read
       checks: write
       pull-requests: write
     defaults:
