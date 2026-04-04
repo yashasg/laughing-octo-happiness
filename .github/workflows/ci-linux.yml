@@ -40,6 +40,12 @@ jobs:
         with:
           python-version: '3.x'
 
+      - name: Ensure python command exists
+        run: |
+          if ! command -v python >/dev/null; then
+            sudo ln -s "$(which python3)" /usr/local/bin/python
+          fi
+
       - name: Setup GoogleTest
         uses: Bacondish2023/setup-googletest@v1
         with:
