@@ -18,15 +18,28 @@ jobs:
 
       - name: Install system dependencies
         run: |
+          NEED_INSTALL=false
           if ! command -v cmake >/dev/null || ! command -v clang >/dev/null; then
-            echo "Installing missing system dependencies..."
+            NEED_INSTALL=true
+          elif [ "$(cmake --version | head -1 | grep -oP '\d+\.\d+')" \< "3.24" ]; then
+            echo "CMake $(cmake --version | head -1) is too old, need >= 3.24"
+            NEED_INSTALL=true
+          fi
+          if [ "$NEED_INSTALL" = true ]; then
+            echo "Installing/upgrading system dependencies..."
             sudo apt-get update -qq
             sudo apt-get install -y --no-install-recommends \
-              cmake build-essential clang \
+              build-essential clang \
               libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev \
               libgl1-mesa-dev libglu1-mesa-dev
+            # Install recent CMake via official Kitware APT repo
+            sudo apt-get install -y --no-install-recommends gpg wget
+            wget -qO - https://apt.kitware.com/keys/kitware-archive-latest.asc | sudo gpg --dearmor -o /usr/share/keyrings/kitware-archive-keyring.gpg
+            echo "deb [signed-by=/usr/share/keyrings/kitware-archive-keyring.gpg] https://apt.kitware.com/ubuntu/ $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/kitware.list
+            sudo apt-get update -qq
+            sudo apt-get install -y --no-install-recommends cmake
           else
-            echo "System dependencies already installed, skipping."
+            echo "System dependencies already installed (CMake $(cmake --version | head -1)), skipping."
           fi
 
       - name: Setup GoogleTest
