@@ -2,7 +2,6 @@
 
 #include "raylib.h"
 #include <string>
-#include <cstdint>
 
 // ---------------------------------------------------------------------------
 // Status model
@@ -12,7 +11,7 @@ enum class CopilotStatus { IDLE, WAITING, BUSY };
 inline const char* status_label(CopilotStatus s) {
     switch (s) {
         case CopilotStatus::IDLE:    return "Zzz...";
-        case CopilotStatus::WAITING: return "Your turn!";
+        case CopilotStatus::WAITING: return "Waiting on you!";
         case CopilotStatus::BUSY:    return "Working...";
     }
     return "";

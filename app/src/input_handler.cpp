@@ -1,6 +1,5 @@
 #include "input_handler.h"
 
-#include "config.h"
 #include "GLFW/glfw3.h"
 
 // ---------------------------------------------------------------------------
