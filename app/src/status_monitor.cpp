@@ -150,6 +150,11 @@ std::string StatusMonitor::status_text() const {
     return m_status_text;
 }
 
+std::string StatusMonitor::idle_text() const {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    return m_idle_text;
+}
+
 std::string StatusMonitor::model_name() const {
     std::lock_guard<std::mutex> lock(m_mutex);
     return m_model_name;
@@ -202,7 +207,9 @@ void StatusMonitor::check_and_notify() {
         } else {
             m_status.store(CopilotStatus::IDLE);
             m_status_text.clear();
+            m_idle_text.clear();
             m_context_bytes.store(0);
+            m_current_tokens.store(0);
         }
 
         new_status = m_status.load();
@@ -275,6 +282,7 @@ void StatusMonitor::parse_status(const std::string& session_dir) {
         ParseResult pr = parse_events(lines);
         m_status.store(pr.status);
         m_status_text = std::move(pr.status_text);
+        if (!pr.idle_text.empty()) m_idle_text = std::move(pr.idle_text);
         if (!pr.model_name.empty()) m_model_name = pr.model_name;
 
         // Token estimate: compaction baseline + accumulated outputTokens

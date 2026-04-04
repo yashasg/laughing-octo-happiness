@@ -25,6 +25,7 @@ public:
     // Thread-safe getters (called from main/render thread)
     CopilotStatus status() const;
     std::string   status_text() const;
+    std::string   idle_text() const;
     std::string   model_name() const;
     size_t        context_bytes() const;
     size_t        current_tokens() const;
@@ -42,6 +43,7 @@ private:
     mutable std::mutex m_mutex;
     std::atomic<CopilotStatus> m_status{CopilotStatus::IDLE};
     std::string m_status_text;
+    std::string m_idle_text;
     std::string m_model_name;
     std::atomic<size_t> m_context_bytes{0};
     std::atomic<size_t> m_current_tokens{0};

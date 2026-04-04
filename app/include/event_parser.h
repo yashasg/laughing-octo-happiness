@@ -7,7 +7,8 @@
 /// Result of parsing a set of JSONL event lines.
 struct ParseResult {
     CopilotStatus status     = CopilotStatus::IDLE;
-    std::string   status_text;   ///< intent or reasoningText from recent events
+    std::string   status_text;   ///< intent, intentionSummary, or reasoningText (for BUSY)
+    std::string   idle_text;     ///< summary from session.task_complete (for IDLE display)
     std::string   model_name;    ///< model from session.model_change, session.start, or tool.execution_complete
 
     // Token metrics (from persisted events)

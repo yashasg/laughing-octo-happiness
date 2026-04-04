@@ -57,8 +57,8 @@ TEST(ParseEvents, BusyOnHookStart) {
     EXPECT_EQ(parse_events({event("hook.start")}).status, CopilotStatus::BUSY);
 }
 
-TEST(ParseEvents, WaitingOnAssistantTurnEnd) {
-    EXPECT_EQ(parse_events({event("assistant.turn_end")}).status, CopilotStatus::WAITING);
+TEST(ParseEvents, IdleOnAssistantTurnEnd) {
+    EXPECT_EQ(parse_events({event("assistant.turn_end")}).status, CopilotStatus::IDLE);
 }
 
 TEST(ParseEvents, IdleOnSessionTaskComplete) {
@@ -68,14 +68,14 @@ TEST(ParseEvents, IdleOnSessionTaskComplete) {
 // ---------------------------------------------------------------------------
 // Last event wins (reverse-walk)
 // ---------------------------------------------------------------------------
-TEST(ParseEvents, LastEventWins_BusyThenWaiting) {
+TEST(ParseEvents, LastEventWins_BusyThenIdle) {
     // Chronological order: turn_start → turn_end
-    // Reverse-walk finds turn_end first → WAITING
+    // Reverse-walk finds turn_end first → IDLE
     ParseResult r = parse_events({
         event("assistant.turn_start"),
         event("assistant.turn_end"),
     });
-    EXPECT_EQ(r.status, CopilotStatus::WAITING);
+    EXPECT_EQ(r.status, CopilotStatus::IDLE);
 }
 
 TEST(ParseEvents, LastEventWins_WaitingThenBusy) {
@@ -155,7 +155,7 @@ TEST(ParseEvents, FullSession) {
         event("assistant.turn_end"),
     };
     ParseResult r = parse_events(lines);
-    EXPECT_EQ(r.status, CopilotStatus::WAITING);
+    EXPECT_EQ(r.status, CopilotStatus::IDLE);  // turn_end → IDLE
     EXPECT_EQ(r.status_text, "Working on it");
     EXPECT_EQ(r.model_name, "claude-sonnet-4.6");
 }
@@ -166,7 +166,7 @@ TEST(ParseEvents, SkipsMalformedLinesAndContinues) {
         event("assistant.turn_end"),
         "also not json",
     });
-    EXPECT_EQ(r.status, CopilotStatus::WAITING);
+    EXPECT_EQ(r.status, CopilotStatus::IDLE);
 }
 
 // ---------------------------------------------------------------------------
@@ -254,4 +254,73 @@ TEST(ParseEvents, NoTokenDataWhenNoCompaction) {
     ParseResult r = parse_events(lines);
     EXPECT_EQ(r.current_tokens, 0u);
     EXPECT_EQ(r.output_tokens_since, 500u);
+}
+
+// ---------------------------------------------------------------------------
+// WAITING state from user-input tools
+// ---------------------------------------------------------------------------
+TEST(ParseEvents, WaitingOnExitPlanMode) {
+    std::string line = event_with_data("tool.execution_start",
+        R"({"toolName":"exit_plan_mode","arguments":{}})");
+    EXPECT_EQ(parse_events({line}).status, CopilotStatus::WAITING);
+}
+
+TEST(ParseEvents, WaitingOnAskUser) {
+    std::string line = event_with_data("tool.execution_start",
+        R"({"toolName":"ask_user","arguments":{"question":"Which DB?"}})");
+    EXPECT_EQ(parse_events({line}).status, CopilotStatus::WAITING);
+}
+
+TEST(ParseEvents, BusyOnNormalTool) {
+    std::string line = event_with_data("tool.execution_start",
+        R"({"toolName":"bash","arguments":{"command":"ls"}})");
+    EXPECT_EQ(parse_events({line}).status, CopilotStatus::BUSY);
+}
+
+// ---------------------------------------------------------------------------
+// intentionSummary extraction
+// ---------------------------------------------------------------------------
+TEST(ParseEvents, ExtractsIntentionSummary) {
+    std::string line = event_with_data("assistant.message",
+        R"({"toolRequests":[{"name":"bash","intentionSummary":"Rebuild the C++ app"}],"outputTokens":50})");
+    ParseResult r = parse_events({line});
+    EXPECT_EQ(r.status_text, "Rebuild the C++ app");
+}
+
+TEST(ParseEvents, IntentOverridesIntentionSummary) {
+    // report_intent takes priority over intentionSummary from other tools
+    std::string line = event_with_data("assistant.message",
+        R"({"toolRequests":[{"name":"report_intent","arguments":{"intent":"Fixing bug"}},{"name":"bash","intentionSummary":"Run tests"}],"outputTokens":50})");
+    ParseResult r = parse_events({line});
+    EXPECT_EQ(r.status_text, "Fixing bug");
+}
+
+// ---------------------------------------------------------------------------
+// idle_text from session.task_complete
+// ---------------------------------------------------------------------------
+TEST(ParseEvents, ExtractsIdleTextFromTaskComplete) {
+    std::string line = event_with_data("session.task_complete",
+        R"({"summary":"Fixed the bug in main.cpp"})");
+    ParseResult r = parse_events({line});
+    EXPECT_EQ(r.idle_text, "Fixed the bug in main.cpp");
+}
+
+TEST(ParseEvents, IdleTextEmptyWhenNoTaskComplete) {
+    ParseResult r = parse_events({event("assistant.turn_end")});
+    EXPECT_TRUE(r.idle_text.empty());
+}
+
+TEST(ParseEvents, FullSessionWithIdleText) {
+    std::vector<std::string> lines = {
+        event_with_data("session.start", R"({"selectedModel":"claude-sonnet-4.6"})"),
+        event("assistant.turn_start"),
+        event_with_data("assistant.message",
+            R"({"toolRequests":[{"name":"bash","intentionSummary":"Build the project"}],"outputTokens":100})"),
+        event_with_data("session.task_complete",
+            R"({"summary":"Built successfully"})"),
+    };
+    ParseResult r = parse_events(lines);
+    EXPECT_EQ(r.status, CopilotStatus::IDLE);
+    EXPECT_EQ(r.idle_text, "Built successfully");
+    EXPECT_EQ(r.status_text, "Build the project");
 }

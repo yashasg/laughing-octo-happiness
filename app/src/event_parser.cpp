@@ -14,16 +14,23 @@ static const std::unordered_map<std::string, CopilotStatus> STATUS_MAP = {
     {"tool.execution_start",  CopilotStatus::BUSY},
     {"assistant.message",     CopilotStatus::BUSY},
     {"hook.start",            CopilotStatus::BUSY},
-    {"assistant.turn_end",    CopilotStatus::WAITING},
+    {"assistant.turn_end",    CopilotStatus::IDLE},
     {"session.task_complete", CopilotStatus::IDLE},
 };
 
+// Tools whose execution_start means the CLI is waiting for user input.
+static bool is_waiting_tool(const std::string& tool_name) {
+    return tool_name == "exit_plan_mode" || tool_name == "ask_user";
+}
+
 ParseResult parse_events(const std::vector<std::string>& lines) {
     ParseResult result;
-    bool found_status    = false;
-    bool found_text      = false;
-    bool found_reasoning = false;
-    bool found_compaction = false;
+    bool found_status      = false;
+    bool found_text        = false;
+    bool found_reasoning   = false;
+    bool found_summary     = false;  // intentionSummary fallback
+    bool found_idle_text   = false;
+    bool found_compaction  = false;
 
     // Tracks whether we've passed the compaction event (reverse scan)
     // so we only accumulate outputTokens for messages BEFORE it (i.e., newer).
@@ -41,10 +48,22 @@ ParseResult parse_events(const std::vector<std::string>& lines) {
 
         // --- Status mapping ---
         if (!found_status) {
-            auto sit = STATUS_MAP.find(event_type);
-            if (sit != STATUS_MAP.end()) {
-                result.status = sit->second;
-                found_status  = true;
+            // Special case: tool.execution_start with user-input tools → WAITING
+            if (event_type == "tool.execution_start") {
+                std::string tool = data.value("toolName", std::string{});
+                if (is_waiting_tool(tool)) {
+                    result.status = CopilotStatus::WAITING;
+                    found_status  = true;
+                } else {
+                    result.status = CopilotStatus::BUSY;
+                    found_status  = true;
+                }
+            } else {
+                auto sit = STATUS_MAP.find(event_type);
+                if (sit != STATUS_MAP.end()) {
+                    result.status = sit->second;
+                    found_status  = true;
+                }
             }
         }
 
@@ -60,25 +79,39 @@ ParseResult parse_events(const std::vector<std::string>& lines) {
             }
         }
 
-        // --- Intent + reasoningText + outputTokens from assistant.message ---
+        // --- Intent + intentionSummary + reasoningText + outputTokens from assistant.message ---
         if (event_type == "assistant.message") {
-            // Extract intent from toolRequests[].name == "report_intent"
-            if (!found_text && data.contains("toolRequests") && data["toolRequests"].is_array()) {
-                for (const auto& req : data["toolRequests"]) {
-                    if (req.value("name", std::string{}) == "report_intent") {
-                        auto args = req.value("arguments", json::object());
-                        std::string intent = args.value("intent", std::string{});
-                        if (!intent.empty()) {
-                            result.status_text = std::move(intent);
-                            found_text         = true;
+            if (data.contains("toolRequests") && data["toolRequests"].is_array()) {
+                // Extract intent from toolRequests[].name == "report_intent"
+                if (!found_text) {
+                    for (const auto& req : data["toolRequests"]) {
+                        if (req.value("name", std::string{}) == "report_intent") {
+                            auto args = req.value("arguments", json::object());
+                            std::string intent = args.value("intent", std::string{});
+                            if (!intent.empty()) {
+                                result.status_text = std::move(intent);
+                                found_text         = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                // Extract most recent intentionSummary as fallback
+                if (!found_text && !found_summary) {
+                    for (const auto& req : data["toolRequests"]) {
+                        std::string summary = req.value("intentionSummary", std::string{});
+                        if (!summary.empty() && req.value("name", std::string{}) != "report_intent") {
+                            result.status_text = std::move(summary);
+                            found_summary      = true;
                             break;
                         }
                     }
                 }
             }
 
-            // Use reasoningText as fallback status text
-            if (!found_text && !found_reasoning) {
+            // Use reasoningText as last-resort fallback
+            if (!found_text && !found_summary && !found_reasoning) {
                 std::string reasoning = data.value("reasoningText", std::string{});
                 if (!reasoning.empty()) {
                     result.status_text = std::move(reasoning);
@@ -90,6 +123,15 @@ ParseResult parse_events(const std::vector<std::string>& lines) {
             if (!past_compaction) {
                 auto ot = data.value("outputTokens", 0);
                 if (ot > 0) result.output_tokens_since += static_cast<size_t>(ot);
+            }
+        }
+
+        // --- Idle text from session.task_complete ---
+        if (!found_idle_text && event_type == "session.task_complete") {
+            std::string summary = data.value("summary", std::string{});
+            if (!summary.empty()) {
+                result.idle_text   = std::move(summary);
+                found_idle_text    = true;
             }
         }
 
@@ -116,7 +158,8 @@ ParseResult parse_events(const std::vector<std::string>& lines) {
         }
 
         // Early exit when all fields are populated
-        if (found_status && (found_text || found_reasoning)
+        bool text_found = found_text || found_summary || found_reasoning;
+        if (found_status && text_found && found_idle_text
             && !result.model_name.empty() && found_compaction) break;
     }
 

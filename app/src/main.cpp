@@ -129,9 +129,18 @@ int main() {
         // 4. Draw
         BeginDrawing();
         ClearBackground(BACKGROUND_COLOR);
-        const std::string& bubble_text = status_text.empty()
-            ? std::string(status_label(status))
-            : status_text;
+
+        // Bubble text: BUSY shows intent/tool summary, IDLE/WAITING shows task_complete summary
+        std::string bubble_text;
+        if (status == CopilotStatus::BUSY) {
+            bubble_text = status_text.empty()
+                ? std::string(status_label(status)) : status_text;
+        } else {
+            std::string idle = monitor.idle_text();
+            bubble_text = idle.empty()
+                ? std::string(status_label(status)) : idle;
+        }
+
         text_renderer.draw_bubble(status, bubble_text);
         renderer.draw(status);
         text_renderer.draw_model_name(model_name);
