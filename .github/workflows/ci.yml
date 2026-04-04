@@ -98,6 +98,14 @@ jobs:
       run:
         shell: msys2 {0}
     steps:
+      - name: Ensure git is in PATH
+        shell: cmd
+        run: |
+          where git >nul 2>&1 && echo Git already available && exit /b 0
+          echo Installing git...
+          choco install git -y --no-progress
+          echo C:\Program Files\Git\cmd>> %GITHUB_PATH%
+
       - uses: actions/checkout@v4
 
       - uses: msys2/setup-msys2@v2
