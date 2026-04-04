@@ -9,7 +9,7 @@ on:
 jobs:
   build-linux:
     name: Build (Linux)
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     permissions:
       checks: write
       pull-requests: write
@@ -18,16 +18,32 @@ jobs:
 
       - name: Install system dependencies
         run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends \
-            cmake build-essential clang \
-            libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev \
-            libgl1-mesa-dev libglu1-mesa-dev
+          if ! command -v cmake >/dev/null || ! command -v clang >/dev/null; then
+            echo "Installing missing system dependencies..."
+            sudo apt-get update -qq
+            sudo apt-get install -y --no-install-recommends \
+              cmake build-essential clang \
+              libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev \
+              libgl1-mesa-dev libglu1-mesa-dev
+          else
+            echo "System dependencies already installed, skipping."
+          fi
 
       - name: Setup GoogleTest
-        uses: Bacondish2023/setup-googletest@v1
-        with:
-          tag: v1.14.0
+        run: |
+          if [ -f /usr/local/lib/libgtest.a ] || [ -f /usr/lib/libgtest.a ]; then
+            echo "GoogleTest already installed, skipping."
+          else
+            echo "Installing GoogleTest v1.14.0..."
+            cd /tmp
+            curl -L https://github.com/google/googletest/archive/refs/tags/v1.14.0.tar.gz -o gtest.tar.gz
+            tar -xzf gtest.tar.gz
+            cd googletest-1.14.0
+            cmake -B build -DCMAKE_BUILD_TYPE=Release
+            cmake --build build --parallel
+            sudo cmake --install build
+            rm -rf /tmp/gtest.tar.gz /tmp/googletest-1.14.0
+          fi
 
       - name: Build
         run: |
