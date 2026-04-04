@@ -20,6 +20,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
       - uses: msys2/setup-msys2@v2
         with:
           msystem: MINGW64
@@ -48,17 +53,15 @@ jobs:
           name: copilot-buddy-windows
           path: app/build/copilot-buddy.exe
 
-      - name: Upload test results
-        if: steps.run-tests.outcome != 'skipped'
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-results-windows
-          path: app/build/test-results.xml
+      - name: Convert test results to CTRF
+        if: always()
+        run: npx junit-to-ctrf app/build/test-results.xml -o ctrf/results.json
+        shell: bash
 
       - name: Report test results
-        if: steps.run-tests.outcome != 'skipped'
-        uses: dorny/test-reporter@v1
+        if: always()
+        uses: ctrf-io/github-test-reporter@v1
         with:
-          name: Tests (Windows)
-          path: app/build/test-results.xml
-          reporter: java-junit
+          report-path: 'ctrf/*.json'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

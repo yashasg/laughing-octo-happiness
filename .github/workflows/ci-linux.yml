@@ -17,6 +17,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
       - name: Setup C++ toolchain
         uses: aminya/setup-cpp@v1
         with:
@@ -55,17 +60,15 @@ jobs:
           name: copilot-buddy-linux
           path: app/build/copilot-buddy
 
-      - name: Upload test results
-        if: steps.run-tests.outcome != 'skipped'
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-results-linux
-          path: app/build/test-results.xml
+      - name: Convert test results to CTRF
+        if: always()
+        run: npx junit-to-ctrf app/build/test-results.xml -o ctrf/results.json
+        shell: bash
 
       - name: Report test results
-        if: steps.run-tests.outcome != 'skipped'
-        uses: dorny/test-reporter@v1
+        if: always()
+        uses: ctrf-io/github-test-reporter@v1
         with:
-          name: Tests (Linux)
-          path: app/build/test-results.xml
-          reporter: java-junit
+          report-path: 'ctrf/*.json'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
