@@ -9,6 +9,8 @@ class TextRenderer {
 public:
     TextRenderer();
     ~TextRenderer();
+    TextRenderer(const TextRenderer&) = delete;
+    TextRenderer& operator=(const TextRenderer&) = delete;
 
     /// Load fonts for bubble and model name. Call after InitWindow().
     /// If font_path is empty, a system font is discovered automatically.

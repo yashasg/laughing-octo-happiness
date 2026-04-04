@@ -27,21 +27,22 @@ static void ensure_github_token() {
     if (!pipe) return;
 
     char buf[256]{};
-    if (fgets(buf, sizeof(buf), pipe)) {
-        // Strip trailing whitespace
-        std::string token(buf);
-        while (!token.empty() && (token.back() == '\n' || token.back() == '\r' || token.back() == ' '))
-            token.pop_back();
-        if (!token.empty()) {
+    bool has_output = (fgets(buf, sizeof(buf), pipe) != nullptr);
+    int exit_status = pclose(pipe);
+
+    if (!has_output || exit_status != 0) return;
+
+    std::string token(buf);
+    while (!token.empty() && (token.back() == '\n' || token.back() == '\r' || token.back() == ' '))
+        token.pop_back();
+    if (!token.empty()) {
 #ifdef _WIN32
-            _putenv_s("COPILOT_GITHUB_TOKEN", token.c_str());
+        _putenv_s("COPILOT_GITHUB_TOKEN", token.c_str());
 #else
-            setenv("COPILOT_GITHUB_TOKEN", token.c_str(), 0);
+        setenv("COPILOT_GITHUB_TOKEN", token.c_str(), 0);
 #endif
-            std::cout << "[auth] Token acquired from gh CLI\n";
-        }
+        std::cout << "[auth] Token acquired from gh CLI\n";
     }
-    pclose(pipe);
 }
 
 int main() {

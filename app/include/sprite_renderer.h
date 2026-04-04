@@ -11,6 +11,8 @@ class SpriteRenderer {
 public:
     SpriteRenderer();
     ~SpriteRenderer();
+    SpriteRenderer(const SpriteRenderer&) = delete;
+    SpriteRenderer& operator=(const SpriteRenderer&) = delete;
 
     /// Load sprite sheets. Call after InitWindow().
     void load(const std::string& idle_path, const std::string& run_path);

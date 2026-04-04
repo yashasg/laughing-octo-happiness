@@ -8,6 +8,8 @@ class InfoRenderer {
 public:
     InfoRenderer();
     ~InfoRenderer();
+    InfoRenderer(const InfoRenderer&) = delete;
+    InfoRenderer& operator=(const InfoRenderer&) = delete;
 
     /// Load the label font. Call after InitWindow().
     /// If font_path is empty, a system font is discovered automatically.

@@ -1,41 +1,10 @@
 #include "text_renderer.h"
+#include "font_utils.h"
 #include "render_logic.h"
 
 #include <algorithm>
 #include <filesystem>
 #include <string>
-#include <vector>
-
-// ---------------------------------------------------------------------------
-// Platform font discovery
-// ---------------------------------------------------------------------------
-static std::string find_system_font() {
-#if defined(_WIN32)
-    const std::vector<std::string> candidates = {
-        "C:/Windows/Fonts/segoeui.ttf",
-        "C:/Windows/Fonts/arial.ttf",
-        "C:/Windows/Fonts/verdana.ttf",
-    };
-#elif defined(__APPLE__)
-    const std::vector<std::string> candidates = {
-        "/System/Library/Fonts/Supplemental/Arial.ttf",
-        "/Library/Fonts/Arial.ttf",
-        "/System/Library/Fonts/Helvetica.ttc",
-        "/System/Library/Fonts/Geneva.ttf",
-    };
-#else
-    const std::vector<std::string> candidates = {
-        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-        "/usr/share/fonts/TTF/DejaVuSans.ttf",
-        "/usr/share/fonts/dejavu/DejaVuSans.ttf",
-        "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
-    };
-#endif
-    for (const auto& path : candidates) {
-        if (std::filesystem::exists(path)) return path;
-    }
-    return "";
-}
 
 // ---------------------------------------------------------------------------
 // Lifecycle
@@ -117,8 +86,9 @@ void TextRenderer::draw_model_name(const std::string& model_name) const {
     Font  small      = m_fonts_loaded ? m_small_font : GetFontDefault();
     float small_size = static_cast<float>(small.baseSize);
 
-    std::string name = model_name.empty() ? FALLBACK_MODEL_NAME : model_name;
-    if (static_cast<int>(name.size()) > 30) name = name.substr(0, 27) + "...";
+    std::string name = model_name.empty()
+        ? std::string{FALLBACK_MODEL_NAME} : model_name;
+    name = truncate_text(name, MAX_TEXT_LEN);
     Vector2 name_sz = MeasureTextEx(small, name.c_str(), small_size, 1.0f);
     float tx = (CANVAS_W - name_sz.x) / 2.0f;
 

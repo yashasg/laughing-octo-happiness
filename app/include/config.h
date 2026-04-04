@@ -2,6 +2,7 @@
 
 #include "raylib.h"
 #include <string>
+#include <string_view>
 
 // ---------------------------------------------------------------------------
 // Status model
@@ -98,22 +99,29 @@ constexpr int    POLL_INTERVAL_MS = 2000;
 constexpr size_t TAIL_READ_BYTES  = 8192;
 
 // Model / context info bar
-inline const std::string FALLBACK_MODEL_NAME = "Unknown";
+inline constexpr std::string_view FALLBACK_MODEL_NAME = "Unknown";
 constexpr size_t CONTEXT_MAX_BYTES = 2 * 1024 * 1024;  // 2 MB (file-size fallback)
 constexpr size_t DEFAULT_CONTEXT_LIMIT = 200000;        // default token limit when model is unknown
 
 // Known model context windows (tokens).
 // Used to compute the health bar ratio without an RPC call.
+// Ordered longest-prefix-first to prevent shorter patterns from matching prematurely.
 inline size_t model_context_limit(const std::string& model_id) {
-    if (model_id.find("claude-opus-4.6-1m") != std::string::npos) return 1000000;
-    if (model_id.find("claude-opus-4.5")    != std::string::npos) return 200000;
-    if (model_id.find("claude-opus-4.6")    != std::string::npos) return 200000;
-    if (model_id.find("claude-sonnet")      != std::string::npos) return 200000;
-    if (model_id.find("claude-haiku")       != std::string::npos) return 200000;
-    if (model_id.find("gpt-5")             != std::string::npos) return 1000000;
-    if (model_id.find("gpt-4.1")           != std::string::npos) return 1000000;
-    if (model_id.find("gpt-4o")            != std::string::npos) return 128000;
+    struct Entry { const char* pattern; size_t limit; };
+    static constexpr Entry entries[] = {
+        {"claude-opus-4.6-1m", 1'000'000},
+        {"claude-opus-4.5",    200'000},
+        {"claude-opus-4.6",    200'000},
+        {"claude-sonnet",      200'000},
+        {"claude-haiku",       200'000},
+        {"gpt-5",              1'000'000},
+        {"gpt-4.1",            1'000'000},
+        {"gpt-4o",             128'000},
+    };
+    for (const auto& [pattern, limit] : entries) {
+        if (model_id.find(pattern) != std::string::npos) return limit;
+    }
     return DEFAULT_CONTEXT_LIMIT;
 }
 
-#define BACKGROUND_COLOR      CLITERAL(Color){ 0, 0, 0, 50 }           // translucent black
+inline constexpr Color BACKGROUND_COLOR = {0, 0, 0, 50};  // translucent black

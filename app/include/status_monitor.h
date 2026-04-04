@@ -18,6 +18,8 @@ public:
 
     explicit StatusMonitor(Callback on_change);
     ~StatusMonitor();
+    StatusMonitor(const StatusMonitor&) = delete;
+    StatusMonitor& operator=(const StatusMonitor&) = delete;
 
     void start();
     void stop();
@@ -33,10 +35,18 @@ public:
     void check_and_notify();  // also called from dmon's background thread
 
 private:
+    struct ParsedState {
+        CopilotStatus status = CopilotStatus::IDLE;
+        std::string status_text;
+        std::string idle_text;
+        std::string model_name;
+        size_t context_bytes = 0;
+        size_t current_tokens = 0;
+    };
+
     void poll_loop();
     std::string find_active_session() const;
-    void parse_status(const std::string& session_dir);
-    void scan_for_model(const std::string& events_path);
+    ParsedState parse_session(const std::string& session_dir) const;
 
     Callback m_on_change;
 

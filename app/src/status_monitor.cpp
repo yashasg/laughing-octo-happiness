@@ -55,7 +55,8 @@ static void dmon_watch_cb(dmon_watch_id /*watch_id*/, dmon_action action,
         std::chrono::steady_clock::now().time_since_epoch()).count();
     int64_t last = s_last_ms.load(std::memory_order_relaxed);
     if (now_ms - last < 150) return;
-    s_last_ms.store(now_ms, std::memory_order_relaxed);
+    if (!s_last_ms.compare_exchange_strong(last, now_ms, std::memory_order_relaxed))
+        return;  // another thread won the debounce race
 
     auto* monitor = static_cast<StatusMonitor*>(user);
     monitor->check_and_notify();
@@ -191,25 +192,35 @@ void StatusMonitor::poll_loop() {
 // callback's thread tries to call public getters.
 // ---------------------------------------------------------------------------
 void StatusMonitor::check_and_notify() {
-    CopilotStatus new_status = CopilotStatus::IDLE;
-    std::string   new_text;
-    bool          changed = false;
+    // Phase 1: Filesystem I/O without holding the mutex.
+    // find_active_session() only reads the immutable m_state_dir.
+    // parse_session() returns a value — no shared state is mutated.
+    std::string session = find_active_session();
+    ParsedState parsed;
+    if (!session.empty()) {
+        parsed = parse_session(session);
+    }
 
+    // Phase 2: Lock briefly to compare previous state and apply update.
+    CopilotStatus new_status;
+    std::string   new_text;
+    bool          changed;
     {
         std::lock_guard<std::mutex> lock(m_mutex);
 
         CopilotStatus prev_status = m_status.load();
         std::string   prev_text   = m_status_text;
 
-        std::string session = find_active_session();
+        m_status.store(parsed.status);
+        m_status_text = std::move(parsed.status_text);
+        m_context_bytes.store(parsed.context_bytes);
+        m_current_tokens.store(parsed.current_tokens);
+
         if (!session.empty()) {
-            parse_status(session);
+            if (!parsed.idle_text.empty()) m_idle_text = std::move(parsed.idle_text);
+            if (!parsed.model_name.empty()) m_model_name = std::move(parsed.model_name);
         } else {
-            m_status.store(CopilotStatus::IDLE);
-            m_status_text.clear();
             m_idle_text.clear();
-            m_context_bytes.store(0);
-            m_current_tokens.store(0);
         }
 
         new_status = m_status.load();
@@ -217,6 +228,7 @@ void StatusMonitor::check_and_notify() {
         changed    = (new_status != prev_status || new_text != prev_text);
     }
 
+    // Phase 3: Fire callback outside the lock to prevent deadlock.
     if (changed && m_on_change) {
         try {
             m_on_change(new_status, new_text);
@@ -228,33 +240,59 @@ void StatusMonitor::check_and_notify() {
 
 // ---------------------------------------------------------------------------
 // find_active_session — delegates to the free function in event_parser.cpp.
-// Called while m_mutex is already held by check_and_notify().
+// Safe to call without m_mutex: only reads the immutable m_state_dir.
 // ---------------------------------------------------------------------------
 std::string StatusMonitor::find_active_session() const {
     return ::find_active_session(m_state_dir);
 }
 
 // ---------------------------------------------------------------------------
-// parse_status — tail-reads the last TAIL_READ_BYTES of events.jsonl and
-// walks lines in reverse to determine status, intent text, and model name.
-// Called while m_mutex is already held.
+// scan_for_model_from_top — reads the first 4 KB of events.jsonl looking for
+// a session.start event that carries selectedModel.
 // ---------------------------------------------------------------------------
-void StatusMonitor::parse_status(const std::string& session_dir) {
+static std::string scan_for_model_from_top(const std::string& events_path) {
+    try {
+        std::ifstream fh(events_path);
+        if (!fh.is_open()) return {};
+
+        std::string line;
+        while (std::getline(fh, line)) {
+            if (!line.empty() && line.back() == '\r') line.pop_back();
+            if (line.empty()) continue;
+
+            json event;
+            try { event = json::parse(line); } catch (...) { continue; }
+
+            if (event.value("type", std::string{}) == "session.start") {
+                auto data  = event.value("data", json::object());
+                std::string model = data.value("selectedModel", std::string{});
+                if (!model.empty()) return model;
+                return {};
+            }
+
+            if (fh.tellg() > 4096) return {};
+        }
+    } catch (...) {}
+    return {};
+}
+
+// ---------------------------------------------------------------------------
+// parse_session — tail-reads events.jsonl and derives the full session state.
+// Pure function: reads from disk, returns a value, mutates no member state.
+// ---------------------------------------------------------------------------
+StatusMonitor::ParsedState StatusMonitor::parse_session(const std::string& session_dir) const {
+    ParsedState state;
     fs::path events_file = fs::path(session_dir) / "events.jsonl";
 
     try {
         auto file_size = fs::file_size(events_file);
-        m_context_bytes.store(file_size);
+        state.context_bytes = file_size;
 
-        if (file_size == 0) {
-            m_status.store(CopilotStatus::IDLE);
-            m_status_text.clear();
-            return;
-        }
+        if (file_size == 0) return state;
 
         // Read last TAIL_READ_BYTES
         std::ifstream fh(events_file, std::ios::binary);
-        if (!fh.is_open()) return;
+        if (!fh.is_open()) return state;
 
         size_t seek_pos = (file_size > TAIL_READ_BYTES)
                           ? static_cast<size_t>(file_size - TAIL_READ_BYTES) : 0;
@@ -280,49 +318,18 @@ void StatusMonitor::parse_status(const std::string& session_dir) {
             lines.erase(lines.begin());
 
         ParseResult pr = parse_events(lines);
-        m_status.store(pr.status);
-        m_status_text = std::move(pr.status_text);
-        if (!pr.idle_text.empty()) m_idle_text = std::move(pr.idle_text);
-        if (!pr.model_name.empty()) m_model_name = pr.model_name;
+        state.status        = pr.status;
+        state.status_text   = std::move(pr.status_text);
+        state.idle_text     = std::move(pr.idle_text);
+        state.model_name    = std::move(pr.model_name);
+        state.current_tokens = pr.current_tokens + pr.output_tokens_since;
 
-        // Token estimate: compaction baseline + accumulated outputTokens
-        size_t tok = pr.current_tokens + pr.output_tokens_since;
-        m_current_tokens.store(tok);
-
-        if (m_model_name.empty())
-            scan_for_model(events_file.string());
-
-    } catch (const std::exception& e) {
-        std::cerr << "[StatusMonitor] parse_status error: " << e.what() << "\n";
-    } catch (...) {}
-}
-
-// ---------------------------------------------------------------------------
-// scan_for_model — reads from the top of events.jsonl (up to 4 KB) looking
-// for a session.start event that carries selectedModel.
-// Called while m_mutex is already held.
-// ---------------------------------------------------------------------------
-void StatusMonitor::scan_for_model(const std::string& events_path) {
-    try {
-        std::ifstream fh(events_path);
-        if (!fh.is_open()) return;
-
-        std::string line;
-        while (std::getline(fh, line)) {
-            if (!line.empty() && line.back() == '\r') line.pop_back();
-            if (line.empty()) continue;
-
-            json event;
-            try { event = json::parse(line); } catch (...) { continue; }
-
-            if (event.value("type", std::string{}) == "session.start") {
-                auto data  = event.value("data", json::object());
-                std::string model = data.value("selectedModel", std::string{});
-                if (!model.empty()) m_model_name = std::move(model);
-                return;
-            }
-
-            if (fh.tellg() > 4096) return;
+        if (state.model_name.empty()) {
+            state.model_name = scan_for_model_from_top(events_file.string());
         }
+    } catch (const std::exception& e) {
+        std::cerr << "[StatusMonitor] parse_session error: " << e.what() << "\n";
     } catch (...) {}
+
+    return state;
 }

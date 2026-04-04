@@ -1,42 +1,11 @@
 #include "info_renderer.h"
+#include "font_utils.h"
 #include "render_logic.h"
 
 #include <algorithm>
 #include <filesystem>
 #include <string>
-#include <vector>
 #include <cstdio>
-
-// ---------------------------------------------------------------------------
-// Platform font discovery
-// ---------------------------------------------------------------------------
-static std::string find_system_font() {
-#if defined(_WIN32)
-    const std::vector<std::string> candidates = {
-        "C:/Windows/Fonts/segoeui.ttf",
-        "C:/Windows/Fonts/arial.ttf",
-        "C:/Windows/Fonts/verdana.ttf",
-    };
-#elif defined(__APPLE__)
-    const std::vector<std::string> candidates = {
-        "/System/Library/Fonts/Supplemental/Arial.ttf",
-        "/Library/Fonts/Arial.ttf",
-        "/System/Library/Fonts/Helvetica.ttc",
-        "/System/Library/Fonts/Geneva.ttf",
-    };
-#else
-    const std::vector<std::string> candidates = {
-        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-        "/usr/share/fonts/TTF/DejaVuSans.ttf",
-        "/usr/share/fonts/dejavu/DejaVuSans.ttf",
-        "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
-    };
-#endif
-    for (const auto& path : candidates) {
-        if (std::filesystem::exists(path)) return path;
-    }
-    return "";
-}
 
 // ---------------------------------------------------------------------------
 // Lifecycle
