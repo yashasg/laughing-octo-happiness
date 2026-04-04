@@ -27,11 +27,11 @@ TEST(BubbleColor, IdleIsBlue) {
     EXPECT_EQ(c.a, 255);
 }
 
-TEST(BubbleColor, WaitingIsGreen) {
+TEST(BubbleColor, WaitingIsYellow) {
     Color c = bubble_color(CopilotStatus::WAITING);
-    EXPECT_EQ(c.r, 0);
-    EXPECT_EQ(c.g, 200);
-    EXPECT_EQ(c.b, 80);
+    EXPECT_EQ(c.r, 230);
+    EXPECT_EQ(c.g, 190);
+    EXPECT_EQ(c.b, 0);
     EXPECT_EQ(c.a, 255);
 }
 

@@ -24,7 +24,7 @@ inline const char* status_label(CopilotStatus s) {
 inline Color bubble_color(CopilotStatus s) {
     switch (s) {
         case CopilotStatus::IDLE:    return {70, 130, 220, 255};   // Blue
-        case CopilotStatus::WAITING: return {0, 200, 80, 255};    // Green
+        case CopilotStatus::WAITING: return {230, 190, 0, 255};    // Yellow
         case CopilotStatus::BUSY:    return {220, 50, 50, 255};   // Red
     }
     return WHITE;
