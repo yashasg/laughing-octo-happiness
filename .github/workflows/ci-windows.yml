@@ -56,7 +56,6 @@ jobs:
       - name: Convert test results to CTRF
         if: always()
         run: npx junit-to-ctrf app/build/test-results.xml -o ctrf/results.json
-        shell: bash
 
       - name: Report test results
         if: always()
