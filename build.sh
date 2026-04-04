@@ -22,12 +22,12 @@ cmake -S "$REPO_ROOT/app" -B "$BUILD_DIR" \
     -DCMAKE_C_COMPILER=clang \
     -DCMAKE_CXX_COMPILER=clang++ \
     -DBUILD_TESTS="$BUILD_TESTS"
-cmake --build "$BUILD_DIR" --parallel
+cmake --build "$BUILD_DIR"
 
 echo "Build succeeded: $BUILD_DIR/copilot-buddy"
 
 if [ "$BUILD_TESTS" = "ON" ]; then
-    cmake --build "$BUILD_DIR" --target copilot-buddy-tests --parallel
+    cmake --build "$BUILD_DIR" --target copilot-buddy-tests
 fi
 
 if [ "$BUILD_TESTS" = "ON" ] && [ "$RUN_TESTS" = "ON" ]; then
