@@ -130,12 +130,12 @@ if(CMAKE_BUILD_TYPE STREQUAL "Release" OR CMAKE_BUILD_TYPE STREQUAL "MinSizeRel"
         -ffunction-sections -fdata-sections -flto=thin)
     if(APPLE)
         target_link_options(copilot-buddy PRIVATE -flto=thin -Wl,-dead_strip)
+    elseif(WIN32)
+        # MinGW clang: use lld for native thin-LTO support (GNU ld's gold
+        # plugin fails to load in MSYS2 environments).
+        target_link_options(copilot-buddy PRIVATE -flto=thin -fuse-ld=lld -Wl,--gc-sections)
     elseif(UNIX)
         target_link_options(copilot-buddy PRIVATE -flto=thin -Wl,--gc-sections)
-    elseif(WIN32)
-        # MinGW uses -flto (no thin); MSVC handled separately if ever adopted
-        target_compile_options(copilot-buddy PRIVATE -flto)
-        target_link_options(copilot-buddy PRIVATE -flto -Wl,--gc-sections)
     endif()
 endif()
 
