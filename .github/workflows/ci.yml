@@ -16,47 +16,24 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install system dependencies
+      - name: Setup C++ toolchain
+        uses: aminya/setup-cpp@v1
+        with:
+          compiler: llvm
+          cmake: true
+          ninja: true
+
+      - name: Install X11/GL headers
         run: |
-          NEED_INSTALL=false
-          if ! command -v cmake >/dev/null || ! command -v clang >/dev/null; then
-            NEED_INSTALL=true
-          elif [ "$(cmake --version | head -1 | grep -oP '\d+\.\d+')" \< "3.24" ]; then
-            echo "CMake $(cmake --version | head -1) is too old, need >= 3.24"
-            NEED_INSTALL=true
-          fi
-          if [ "$NEED_INSTALL" = true ]; then
-            echo "Installing/upgrading system dependencies..."
-            sudo apt-get update -qq
-            sudo apt-get install -y --no-install-recommends \
-              build-essential clang \
-              libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev \
-              libgl1-mesa-dev libglu1-mesa-dev
-            # Install recent CMake via official Kitware APT repo
-            sudo apt-get install -y --no-install-recommends gpg wget
-            wget -qO - https://apt.kitware.com/keys/kitware-archive-latest.asc | sudo gpg --dearmor -o /usr/share/keyrings/kitware-archive-keyring.gpg
-            echo "deb [signed-by=/usr/share/keyrings/kitware-archive-keyring.gpg] https://apt.kitware.com/ubuntu/ $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/kitware.list
-            sudo apt-get update -qq
-            sudo apt-get install -y --no-install-recommends cmake
-          else
-            echo "System dependencies already installed (CMake $(cmake --version | head -1)), skipping."
-          fi
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev \
+            libgl1-mesa-dev libglu1-mesa-dev
 
       - name: Setup GoogleTest
-        run: |
-          if [ -f /usr/local/lib/libgtest.a ] || [ -f /usr/lib/libgtest.a ]; then
-            echo "GoogleTest already installed, skipping."
-          else
-            echo "Installing GoogleTest v1.14.0..."
-            cd /tmp
-            curl -L https://github.com/google/googletest/archive/refs/tags/v1.14.0.tar.gz -o gtest.tar.gz
-            tar -xzf gtest.tar.gz
-            cd googletest-1.14.0
-            cmake -B build -DCMAKE_BUILD_TYPE=Release
-            cmake --build build --parallel
-            sudo cmake --install build
-            rm -rf /tmp/gtest.tar.gz /tmp/googletest-1.14.0
-          fi
+        uses: Bacondish2023/setup-googletest@v1
+        with:
+          tag: v1.14.0
 
       - name: Build
         run: |
@@ -98,14 +75,6 @@ jobs:
       run:
         shell: msys2 {0}
     steps:
-      - name: Ensure git is in PATH
-        shell: cmd
-        run: |
-          where git >nul 2>&1 && echo Git already available && exit /b 0
-          echo Installing git...
-          choco install git -y --no-progress
-          echo C:\Program Files\Git\cmd>> %GITHUB_PATH%
-
       - uses: actions/checkout@v4
 
       - uses: msys2/setup-msys2@v2
