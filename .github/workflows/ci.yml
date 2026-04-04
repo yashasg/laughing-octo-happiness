@@ -21,7 +21,6 @@ jobs:
         with:
           compiler: llvm
           cmake: true
-          ninja: true
 
       - name: Install X11/GL headers
         run: |
