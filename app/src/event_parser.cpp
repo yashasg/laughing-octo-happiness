@@ -27,8 +27,6 @@ ParseResult parse_events(const std::vector<std::string>& lines) {
     ParseResult result;
     bool found_status      = false;
     bool found_text        = false;
-    bool found_reasoning   = false;
-    bool found_summary     = false;  // intentionSummary fallback
     bool found_idle_text   = false;
     bool found_compaction  = false;
 
@@ -67,7 +65,7 @@ ParseResult parse_events(const std::vector<std::string>& lines) {
             }
         }
 
-        // --- Intent text from tool.execution_start (report_intent) ---
+        // --- Intent text from tool.execution_start (report_intent only) ---
         if (!found_text && event_type == "tool.execution_start") {
             if (data.value("toolName", std::string{}) == "report_intent") {
                 auto args = data.value("arguments", json::object());
@@ -79,46 +77,8 @@ ParseResult parse_events(const std::vector<std::string>& lines) {
             }
         }
 
-        // --- Intent + intentionSummary + reasoningText + outputTokens from assistant.message ---
+        // --- outputTokens from assistant.message ---
         if (event_type == "assistant.message") {
-            if (data.contains("toolRequests") && data["toolRequests"].is_array()) {
-                // Extract intent from toolRequests[].name == "report_intent"
-                if (!found_text) {
-                    for (const auto& req : data["toolRequests"]) {
-                        if (req.value("name", std::string{}) == "report_intent") {
-                            auto args = req.value("arguments", json::object());
-                            std::string intent = args.value("intent", std::string{});
-                            if (!intent.empty()) {
-                                result.status_text = std::move(intent);
-                                found_text         = true;
-                                break;
-                            }
-                        }
-                    }
-                }
-
-                // Extract most recent intentionSummary as fallback
-                if (!found_text && !found_summary) {
-                    for (const auto& req : data["toolRequests"]) {
-                        std::string summary = req.value("intentionSummary", std::string{});
-                        if (!summary.empty() && req.value("name", std::string{}) != "report_intent") {
-                            result.status_text = std::move(summary);
-                            found_summary      = true;
-                            break;
-                        }
-                    }
-                }
-            }
-
-            // Use reasoningText as last-resort fallback
-            if (!found_text && !found_summary && !found_reasoning) {
-                std::string reasoning = data.value("reasoningText", std::string{});
-                if (!reasoning.empty()) {
-                    result.status_text = std::move(reasoning);
-                    found_reasoning    = true;
-                }
-            }
-
             // Accumulate outputTokens for messages before the compaction event
             if (!past_compaction) {
                 auto ot = data.value("outputTokens", 0);
@@ -158,8 +118,7 @@ ParseResult parse_events(const std::vector<std::string>& lines) {
         }
 
         // Early exit when all fields are populated
-        bool text_found = found_text || found_summary || found_reasoning;
-        if (found_status && text_found && found_idle_text
+        if (found_status && found_text && found_idle_text
             && !result.model_name.empty() && found_compaction) break;
     }
 

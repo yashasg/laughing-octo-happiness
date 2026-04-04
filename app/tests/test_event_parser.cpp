@@ -170,17 +170,19 @@ TEST(ParseEvents, SkipsMalformedLinesAndContinues) {
 }
 
 // ---------------------------------------------------------------------------
-// Intent from assistant.message → toolRequests
+// Intent ONLY from tool.execution_start (report_intent)
+// assistant.message toolRequests and reasoningText are NOT used for status_text
 // ---------------------------------------------------------------------------
-TEST(ParseEvents, ExtractsIntentFromAssistantMessageToolRequests) {
+TEST(ParseEvents, NoIntentFromAssistantMessageToolRequests) {
+    // report_intent in assistant.message toolRequests should NOT set status_text
     std::string line = event_with_data("assistant.message",
         R"({"toolRequests":[{"name":"report_intent","arguments":{"intent":"Exploring codebase"}}],"outputTokens":100})");
     ParseResult r = parse_events({line});
-    EXPECT_EQ(r.status_text, "Exploring codebase");
+    EXPECT_TRUE(r.status_text.empty());
 }
 
-TEST(ParseEvents, IntentFromToolExecutionStartTakesPriority) {
-    // tool.execution_start is more recent (last in list) so found first in reverse
+TEST(ParseEvents, IntentFromToolExecutionStartOnly) {
+    // tool.execution_start report_intent sets status_text
     std::string msg = event_with_data("assistant.message",
         R"({"toolRequests":[{"name":"report_intent","arguments":{"intent":"Old intent"}}],"outputTokens":50})");
     std::string exec = event_with_data("tool.execution_start",
@@ -189,22 +191,11 @@ TEST(ParseEvents, IntentFromToolExecutionStartTakesPriority) {
     EXPECT_EQ(r.status_text, "New intent");
 }
 
-// ---------------------------------------------------------------------------
-// reasoningText fallback
-// ---------------------------------------------------------------------------
-TEST(ParseEvents, FallsBackToReasoningText) {
+TEST(ParseEvents, ReasoningTextNotUsedForStatusText) {
     std::string line = event_with_data("assistant.message",
         R"({"reasoningText":"Let me analyze the code","outputTokens":200})");
     ParseResult r = parse_events({line});
-    EXPECT_EQ(r.status_text, "Let me analyze the code");
-}
-
-TEST(ParseEvents, IntentOverridesReasoningText) {
-    // assistant.message with both reasoningText and report_intent in toolRequests
-    std::string line = event_with_data("assistant.message",
-        R"({"reasoningText":"Some thinking","toolRequests":[{"name":"report_intent","arguments":{"intent":"Fixing bug"}}],"outputTokens":100})");
-    ParseResult r = parse_events({line});
-    EXPECT_EQ(r.status_text, "Fixing bug");
+    EXPECT_TRUE(r.status_text.empty());
 }
 
 // ---------------------------------------------------------------------------
@@ -280,19 +271,19 @@ TEST(ParseEvents, BusyOnNormalTool) {
 // ---------------------------------------------------------------------------
 // intentionSummary extraction
 // ---------------------------------------------------------------------------
-TEST(ParseEvents, ExtractsIntentionSummary) {
+TEST(ParseEvents, IntentionSummaryNotUsedForStatusText) {
     std::string line = event_with_data("assistant.message",
         R"({"toolRequests":[{"name":"bash","intentionSummary":"Rebuild the C++ app"}],"outputTokens":50})");
     ParseResult r = parse_events({line});
-    EXPECT_EQ(r.status_text, "Rebuild the C++ app");
+    EXPECT_TRUE(r.status_text.empty());
 }
 
-TEST(ParseEvents, IntentOverridesIntentionSummary) {
-    // report_intent takes priority over intentionSummary from other tools
+TEST(ParseEvents, OnlyToolExecutionStartReportIntentSetsStatusText) {
+    // assistant.message toolRequests should NOT set status_text, even with report_intent
     std::string line = event_with_data("assistant.message",
         R"({"toolRequests":[{"name":"report_intent","arguments":{"intent":"Fixing bug"}},{"name":"bash","intentionSummary":"Run tests"}],"outputTokens":50})");
     ParseResult r = parse_events({line});
-    EXPECT_EQ(r.status_text, "Fixing bug");
+    EXPECT_TRUE(r.status_text.empty());
 }
 
 // ---------------------------------------------------------------------------
@@ -314,6 +305,8 @@ TEST(ParseEvents, FullSessionWithIdleText) {
     std::vector<std::string> lines = {
         event_with_data("session.start", R"({"selectedModel":"claude-sonnet-4.6"})"),
         event("assistant.turn_start"),
+        event_with_data("tool.execution_start",
+            R"({"toolName":"report_intent","arguments":{"intent":"Building project"}})"),
         event_with_data("assistant.message",
             R"({"toolRequests":[{"name":"bash","intentionSummary":"Build the project"}],"outputTokens":100})"),
         event_with_data("session.task_complete",
@@ -322,5 +315,5 @@ TEST(ParseEvents, FullSessionWithIdleText) {
     ParseResult r = parse_events(lines);
     EXPECT_EQ(r.status, CopilotStatus::IDLE);
     EXPECT_EQ(r.idle_text, "Built successfully");
-    EXPECT_EQ(r.status_text, "Build the project");
+    EXPECT_EQ(r.status_text, "Building project");
 }
