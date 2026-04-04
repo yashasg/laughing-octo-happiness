@@ -65,3 +65,32 @@ TEST(BubbleFill, BlendIsCorrect) {
     EXPECT_EQ(fill.b, static_cast<unsigned char>(255 * 0.85f + 220 * 0.15f));
     EXPECT_EQ(fill.a, 255);
 }
+
+// ---------------------------------------------------------------------------
+// model_context_limit
+// ---------------------------------------------------------------------------
+TEST(ModelContextLimit, ClaudeOpus1M) {
+    EXPECT_EQ(model_context_limit("claude-opus-4.6-1m"), 1000000u);
+}
+
+TEST(ModelContextLimit, ClaudeSonnet) {
+    EXPECT_EQ(model_context_limit("claude-sonnet-4.6"), 200000u);
+    EXPECT_EQ(model_context_limit("claude-sonnet-4.5"), 200000u);
+}
+
+TEST(ModelContextLimit, ClaudeHaiku) {
+    EXPECT_EQ(model_context_limit("claude-haiku-4.5"), 200000u);
+}
+
+TEST(ModelContextLimit, Gpt5) {
+    EXPECT_EQ(model_context_limit("gpt-5.2"), 1000000u);
+}
+
+TEST(ModelContextLimit, Gpt4o) {
+    EXPECT_EQ(model_context_limit("gpt-4o"), 128000u);
+}
+
+TEST(ModelContextLimit, UnknownModelReturnsDefault) {
+    EXPECT_EQ(model_context_limit("some-unknown-model"), DEFAULT_CONTEXT_LIMIT);
+    EXPECT_EQ(model_context_limit(""), DEFAULT_CONTEXT_LIMIT);
+}

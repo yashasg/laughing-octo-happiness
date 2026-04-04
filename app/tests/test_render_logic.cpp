@@ -17,11 +17,15 @@ TEST(TruncateText, ExactLengthUnchanged) {
 }
 
 TEST(TruncateText, LongTextTruncated) {
-    // One character over MAX_TEXT_LEN — should be truncated and end with "..."
+    // One character over MAX_TEXT_LEN — should be center-ellipsized with "..."
     std::string input(MAX_TEXT_LEN + 1, 'A');
     std::string result = truncate_text(input, MAX_TEXT_LEN);
-    EXPECT_EQ(result.substr(result.size() - 3), "...");
-    EXPECT_EQ(result.substr(0, MAX_TEXT_LEN - 3), std::string(MAX_TEXT_LEN - 3, 'A'));
+    int keep = MAX_TEXT_LEN - 3;
+    int head = (keep + 1) / 2;
+    int tail = keep - head;
+    EXPECT_EQ(result.substr(0, head), std::string(head, 'A'));
+    EXPECT_EQ(result.substr(head, 3), "...");
+    EXPECT_EQ(result.substr(head + 3), std::string(tail, 'A'));
 }
 
 TEST(TruncateText, TruncatedLengthIsMaxLen) {
@@ -29,6 +33,24 @@ TEST(TruncateText, TruncatedLengthIsMaxLen) {
     std::string input(MAX_TEXT_LEN + 10, 'B');
     std::string result = truncate_text(input, MAX_TEXT_LEN);
     EXPECT_EQ(static_cast<int>(result.size()), MAX_TEXT_LEN);
+}
+
+TEST(TruncateText, CenterEllipsisPreservesEnds) {
+    std::string input = "Let me start by reading the files in parallel";
+    std::string result = truncate_text(input, 30);
+    // Should have "..." in the middle, start matches, end matches
+    EXPECT_EQ(static_cast<int>(result.size()), 30);
+    auto pos = result.find("...");
+    ASSERT_NE(pos, std::string::npos);
+    // Head should be the start of the original string
+    EXPECT_EQ(result.substr(0, pos), input.substr(0, pos));
+    // Tail should be the end of the original string
+    std::string tail = result.substr(pos + 3);
+    EXPECT_EQ(tail, input.substr(input.size() - tail.size()));
+}
+
+TEST(TruncateText, MaxTextLenIs30) {
+    EXPECT_EQ(MAX_TEXT_LEN, 30);
 }
 
 // ---------------------------------------------------------------------------

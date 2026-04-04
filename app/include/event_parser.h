@@ -7,8 +7,12 @@
 /// Result of parsing a set of JSONL event lines.
 struct ParseResult {
     CopilotStatus status     = CopilotStatus::IDLE;
-    std::string   status_text;   ///< intent from the most recent report_intent call
-    std::string   model_name;    ///< model from session.start or tool.execution_complete
+    std::string   status_text;   ///< intent or reasoningText from recent events
+    std::string   model_name;    ///< model from session.model_change, session.start, or tool.execution_complete
+
+    // Token metrics (from persisted events)
+    size_t        current_tokens     = 0;  ///< from session.compaction_complete preCompactionTokens
+    size_t        output_tokens_since = 0;  ///< accumulated outputTokens from assistant.message after compaction
 };
 
 /// Walk lines in reverse order and derive the current status, status text,

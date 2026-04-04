@@ -10,12 +10,48 @@
 #include <iostream>
 #include <string>
 #include <algorithm>
+#include <cstdio>
+#include <cstdlib>
+
+// ---------------------------------------------------------------------------
+// Acquire a GitHub auth token from `gh auth token` if no env var is set.
+// Sets COPILOT_GITHUB_TOKEN so downstream Copilot CLI invocations skip the
+// system keychain (avoids credential popup).
+// ---------------------------------------------------------------------------
+static void ensure_github_token() {
+    if (std::getenv("COPILOT_GITHUB_TOKEN")) return;
+    if (std::getenv("GH_TOKEN"))             return;
+    if (std::getenv("GITHUB_TOKEN"))         return;
+
+    FILE* pipe = popen("gh auth token 2>/dev/null", "r");
+    if (!pipe) return;
+
+    char buf[256]{};
+    if (fgets(buf, sizeof(buf), pipe)) {
+        // Strip trailing whitespace
+        std::string token(buf);
+        while (!token.empty() && (token.back() == '\n' || token.back() == '\r' || token.back() == ' '))
+            token.pop_back();
+        if (!token.empty()) {
+#ifdef _WIN32
+            _putenv_s("COPILOT_GITHUB_TOKEN", token.c_str());
+#else
+            setenv("COPILOT_GITHUB_TOKEN", token.c_str(), 0);
+#endif
+            std::cout << "[auth] Token acquired from gh CLI\n";
+        }
+    }
+    pclose(pipe);
+}
 
 int main() {
 #ifndef COPILOT_BUDDY_VERSION
 #define COPILOT_BUDDY_VERSION "dev"
 #endif
     std::cout << "Copilot Buddy (C++) v" COPILOT_BUDDY_VERSION "\n";
+
+    // Acquire auth token before anything touches the Copilot CLI
+    ensure_github_token();
 
     // -----------------------------------------------------------------------
     // Window setup
@@ -45,8 +81,9 @@ int main() {
     InfoRenderer   info_renderer;
     std::string base = GetApplicationDirectory();
     renderer.load(base + "resources/IDLE.png", base + "resources/RUN.png");
-    text_renderer.load();
-    info_renderer.load();
+    std::string font_path = base + "resources/fonts/PixelifySans-Regular.ttf";
+    text_renderer.load(font_path);
+    info_renderer.load(font_path);
 
     // -----------------------------------------------------------------------
     // Status monitor (background threads, thread-safe getters)
@@ -70,9 +107,18 @@ int main() {
         std::string   status_text = monitor.status_text();
         std::string   model_name  = monitor.model_name();
         size_t        ctx_bytes   = monitor.context_bytes();
-        float         ctx_ratio   = std::min(1.0f,
-                                        static_cast<float>(ctx_bytes)
-                                        / static_cast<float>(CONTEXT_MAX_BYTES));
+        size_t        tok_used    = monitor.current_tokens();
+        size_t        tok_limit   = model_context_limit(model_name);
+
+        // Prefer real token ratio; fall back to file-size proxy
+        float ctx_ratio;
+        if (tok_used > 0) {
+            ctx_ratio = std::min(1.0f,
+                static_cast<float>(tok_used) / static_cast<float>(tok_limit));
+        } else {
+            ctx_ratio = std::min(1.0f,
+                static_cast<float>(ctx_bytes) / static_cast<float>(CONTEXT_MAX_BYTES));
+        }
 
         // 2. Input (quit, drag-to-move, topmost re-assertion)
         if (input.process()) break;
@@ -82,14 +128,14 @@ int main() {
 
         // 4. Draw
         BeginDrawing();
-        ClearBackground(BLANK);
+        ClearBackground(BACKGROUND_COLOR);
         const std::string& bubble_text = status_text.empty()
             ? std::string(status_label(status))
             : status_text;
         text_renderer.draw_bubble(status, bubble_text);
         renderer.draw(status);
         text_renderer.draw_model_name(model_name);
-        info_renderer.draw(ctx_ratio);
+        info_renderer.draw(ctx_ratio, tok_used, tok_limit);
         EndDrawing();
     }
 

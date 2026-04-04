@@ -50,12 +50,14 @@ TextRenderer::~TextRenderer() {
 }
 
 void TextRenderer::load(const std::string& font_path) {
-    std::string resolved = font_path.empty() ? find_system_font() : font_path;
+    std::string resolved = font_path.empty() ? find_system_font()
+                         : std::filesystem::exists(font_path) ? font_path
+                         : find_system_font();
     if (!resolved.empty()) {
-        m_font       = LoadFontEx(resolved.c_str(), 15, nullptr, 0);
-        m_small_font = LoadFontEx(resolved.c_str(), 14, nullptr, 0);
-        SetTextureFilter(m_font.texture,       TEXTURE_FILTER_BILINEAR);
-        SetTextureFilter(m_small_font.texture, TEXTURE_FILTER_BILINEAR);
+        m_font       = LoadFontEx(resolved.c_str(), 16, nullptr, 0);
+        m_small_font = LoadFontEx(resolved.c_str(), 16, nullptr, 0);
+        SetTextureFilter(m_font.texture,       TEXTURE_FILTER_POINT);
+        SetTextureFilter(m_small_font.texture, TEXTURE_FILTER_POINT);
         m_fonts_loaded = true;
     }
     // m_fonts_loaded stays false → draw helpers fall back to GetFontDefault()

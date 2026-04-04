@@ -168,3 +168,90 @@ TEST(ParseEvents, SkipsMalformedLinesAndContinues) {
     });
     EXPECT_EQ(r.status, CopilotStatus::WAITING);
 }
+
+// ---------------------------------------------------------------------------
+// Intent from assistant.message → toolRequests
+// ---------------------------------------------------------------------------
+TEST(ParseEvents, ExtractsIntentFromAssistantMessageToolRequests) {
+    std::string line = event_with_data("assistant.message",
+        R"({"toolRequests":[{"name":"report_intent","arguments":{"intent":"Exploring codebase"}}],"outputTokens":100})");
+    ParseResult r = parse_events({line});
+    EXPECT_EQ(r.status_text, "Exploring codebase");
+}
+
+TEST(ParseEvents, IntentFromToolExecutionStartTakesPriority) {
+    // tool.execution_start is more recent (last in list) so found first in reverse
+    std::string msg = event_with_data("assistant.message",
+        R"({"toolRequests":[{"name":"report_intent","arguments":{"intent":"Old intent"}}],"outputTokens":50})");
+    std::string exec = event_with_data("tool.execution_start",
+        R"({"toolName":"report_intent","arguments":{"intent":"New intent"}})");
+    ParseResult r = parse_events({msg, exec});
+    EXPECT_EQ(r.status_text, "New intent");
+}
+
+// ---------------------------------------------------------------------------
+// reasoningText fallback
+// ---------------------------------------------------------------------------
+TEST(ParseEvents, FallsBackToReasoningText) {
+    std::string line = event_with_data("assistant.message",
+        R"({"reasoningText":"Let me analyze the code","outputTokens":200})");
+    ParseResult r = parse_events({line});
+    EXPECT_EQ(r.status_text, "Let me analyze the code");
+}
+
+TEST(ParseEvents, IntentOverridesReasoningText) {
+    // assistant.message with both reasoningText and report_intent in toolRequests
+    std::string line = event_with_data("assistant.message",
+        R"({"reasoningText":"Some thinking","toolRequests":[{"name":"report_intent","arguments":{"intent":"Fixing bug"}}],"outputTokens":100})");
+    ParseResult r = parse_events({line});
+    EXPECT_EQ(r.status_text, "Fixing bug");
+}
+
+// ---------------------------------------------------------------------------
+// Model name from session.model_change
+// ---------------------------------------------------------------------------
+TEST(ParseEvents, ExtractsModelFromModelChange) {
+    std::string line = event_with_data("session.model_change",
+        R"({"newModel":"claude-opus-4.6-1m","previousModel":"claude-sonnet-4.6"})");
+    EXPECT_EQ(parse_events({line}).model_name, "claude-opus-4.6-1m");
+}
+
+TEST(ParseEvents, ModelChangeOverridesSessionStart) {
+    std::vector<std::string> lines = {
+        event_with_data("session.start", R"({"selectedModel":"claude-sonnet-4.6"})"),
+        event_with_data("session.model_change", R"({"newModel":"claude-opus-4.6-1m"})"),
+    };
+    // Reverse-walk: model_change is found first
+    EXPECT_EQ(parse_events(lines).model_name, "claude-opus-4.6-1m");
+}
+
+// ---------------------------------------------------------------------------
+// Token metrics
+// ---------------------------------------------------------------------------
+TEST(ParseEvents, ExtractsTokensFromCompaction) {
+    std::string line = event_with_data("session.compaction_complete",
+        R"({"success":true,"preCompactionTokens":135427})");
+    ParseResult r = parse_events({line});
+    EXPECT_EQ(r.current_tokens, 135427u);
+}
+
+TEST(ParseEvents, AccumulatesOutputTokensBeforeCompaction) {
+    std::vector<std::string> lines = {
+        event_with_data("session.compaction_complete",
+            R"({"success":true,"preCompactionTokens":100000})"),
+        event_with_data("assistant.message", R"({"outputTokens":200})"),
+        event_with_data("assistant.message", R"({"outputTokens":300})"),
+    };
+    ParseResult r = parse_events(lines);
+    EXPECT_EQ(r.current_tokens, 100000u);
+    EXPECT_EQ(r.output_tokens_since, 500u);  // 200 + 300 after compaction
+}
+
+TEST(ParseEvents, NoTokenDataWhenNoCompaction) {
+    std::vector<std::string> lines = {
+        event_with_data("assistant.message", R"({"outputTokens":500})"),
+    };
+    ParseResult r = parse_events(lines);
+    EXPECT_EQ(r.current_tokens, 0u);
+    EXPECT_EQ(r.output_tokens_since, 500u);
+}

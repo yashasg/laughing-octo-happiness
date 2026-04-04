@@ -5,6 +5,7 @@
 #include <filesystem>
 #include <string>
 #include <vector>
+#include <cstdio>
 
 // ---------------------------------------------------------------------------
 // Platform font discovery
@@ -49,26 +50,47 @@ InfoRenderer::~InfoRenderer() {
 }
 
 void InfoRenderer::load(const std::string& font_path) {
-    std::string resolved = font_path.empty() ? find_system_font() : font_path;
+    std::string resolved = font_path.empty() ? find_system_font()
+                         : std::filesystem::exists(font_path) ? font_path
+                         : find_system_font();
     if (!resolved.empty()) {
-        m_label_font = LoadFontEx(resolved.c_str(), 10, nullptr, 0);
-        SetTextureFilter(m_label_font.texture, TEXTURE_FILTER_BILINEAR);
+        m_label_font = LoadFontEx(resolved.c_str(), 8, nullptr, 0);
+        SetTextureFilter(m_label_font.texture, TEXTURE_FILTER_POINT);
         m_font_loaded = true;
     }
     // m_font_loaded stays false → draw falls back to GetFontDefault()
 }
 
 // ---------------------------------------------------------------------------
+// Format a token count as compact string: 1234 → "1.2k", 135427 → "135k"
+// ---------------------------------------------------------------------------
+static std::string format_tokens(size_t tokens) {
+    if (tokens < 1000) return std::to_string(tokens);
+    char buf[32];
+    if (tokens < 10000)
+        std::snprintf(buf, sizeof(buf), "%.1fk", static_cast<double>(tokens) / 1000.0);
+    else
+        std::snprintf(buf, sizeof(buf), "%zuk", tokens / 1000);
+    return buf;
+}
+
+// ---------------------------------------------------------------------------
 // Context health bar
 // ---------------------------------------------------------------------------
-void InfoRenderer::draw(float ratio) const {
+void InfoRenderer::draw(float ratio, size_t current_tokens, size_t token_limit) const {
     ratio = std::max(0.0f, std::min(1.0f, ratio));
 
     Font  lbl      = m_font_loaded ? m_label_font : GetFontDefault();
     float lbl_size = static_cast<float>(lbl.baseSize);
 
-    // "Context" label
-    const char* ctx = "Context";
+    // Context label — show token counts when available, else "Context"
+    std::string label_str;
+    if (token_limit > 0 && current_tokens > 0) {
+        label_str = format_tokens(current_tokens) + " / " + format_tokens(token_limit);
+    } else {
+        label_str = "Context";
+    }
+    const char* ctx = label_str.c_str();
     Vector2 ctx_sz = MeasureTextEx(lbl, ctx, lbl_size, 1.0f);
     float ltx = (CANVAS_W - ctx_sz.x) / 2.0f;
     DrawTextEx(lbl, ctx, { ltx, static_cast<float>(BAR_LABEL_Y) },

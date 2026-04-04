@@ -27,6 +27,7 @@ public:
     std::string   status_text() const;
     std::string   model_name() const;
     size_t        context_bytes() const;
+    size_t        current_tokens() const;
 
     void check_and_notify();  // also called from dmon's background thread
 
@@ -43,6 +44,7 @@ private:
     std::string m_status_text;
     std::string m_model_name;
     std::atomic<size_t> m_context_bytes{0};
+    std::atomic<size_t> m_current_tokens{0};
 
     std::atomic<bool> m_running{false};
     std::unique_ptr<std::thread> m_poll_thread;

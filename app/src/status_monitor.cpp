@@ -159,6 +159,10 @@ size_t StatusMonitor::context_bytes() const {
     return m_context_bytes.load();
 }
 
+size_t StatusMonitor::current_tokens() const {
+    return m_current_tokens.load();
+}
+
 // ---------------------------------------------------------------------------
 // Background poll loop — sleeps in 50 ms chunks so stop() is responsive
 // ---------------------------------------------------------------------------
@@ -272,6 +276,10 @@ void StatusMonitor::parse_status(const std::string& session_dir) {
         m_status.store(pr.status);
         m_status_text = std::move(pr.status_text);
         if (!pr.model_name.empty()) m_model_name = pr.model_name;
+
+        // Token estimate: compaction baseline + accumulated outputTokens
+        size_t tok = pr.current_tokens + pr.output_tokens_since;
+        m_current_tokens.store(tok);
 
         if (m_model_name.empty())
             scan_for_model(events_file.string());

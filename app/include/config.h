@@ -70,7 +70,7 @@ constexpr int TRI_WIDTH         = 10;
 constexpr int TRI_HEIGHT        = 8;
 constexpr int TRI_TIP_Y         = BUBBLE_BOTTOM + TRI_HEIGHT;  // 60
 constexpr int SPRITE_Y          = 62;
-constexpr int MAX_TEXT_LEN      = 25;
+constexpr int MAX_TEXT_LEN      = 30;
 
 // Info bar layout (below sprite)
 constexpr int INFO_Y            = SPRITE_Y + SPRITE_DISPLAY_H + 4;   // model text top
@@ -100,4 +100,21 @@ constexpr size_t TAIL_READ_BYTES  = 8192;
 
 // Model / context info bar
 inline const std::string FALLBACK_MODEL_NAME = "Unknown";
-constexpr size_t CONTEXT_MAX_BYTES = 2 * 1024 * 1024;  // 2 MB
+constexpr size_t CONTEXT_MAX_BYTES = 2 * 1024 * 1024;  // 2 MB (file-size fallback)
+constexpr size_t DEFAULT_CONTEXT_LIMIT = 200000;        // default token limit when model is unknown
+
+// Known model context windows (tokens).
+// Used to compute the health bar ratio without an RPC call.
+inline size_t model_context_limit(const std::string& model_id) {
+    if (model_id.find("claude-opus-4.6-1m") != std::string::npos) return 1000000;
+    if (model_id.find("claude-opus-4.5")    != std::string::npos) return 200000;
+    if (model_id.find("claude-opus-4.6")    != std::string::npos) return 200000;
+    if (model_id.find("claude-sonnet")      != std::string::npos) return 200000;
+    if (model_id.find("claude-haiku")       != std::string::npos) return 200000;
+    if (model_id.find("gpt-5")             != std::string::npos) return 1000000;
+    if (model_id.find("gpt-4.1")           != std::string::npos) return 1000000;
+    if (model_id.find("gpt-4o")            != std::string::npos) return 128000;
+    return DEFAULT_CONTEXT_LIMIT;
+}
+
+#define BACKGROUND_COLOR      CLITERAL(Color){ 0, 0, 0, 50 }           // translucent black

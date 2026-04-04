@@ -5,11 +5,15 @@
 #include <string>
 #include <algorithm>
 
-/// Truncate text to max_len chars, appending "..." if truncated.
+/// Truncate text to max_len chars using center-ellipsis: "head...tail".
+/// Preserves the beginning (what) and end (target) of longer strings.
 inline std::string truncate_text(const std::string& text, int max_len) {
-    if (static_cast<int>(text.size()) > max_len)
-        return text.substr(0, max_len - 3) + "...";
-    return text;
+    if (max_len < 7) max_len = 7;  // minimum for "a...b"
+    if (static_cast<int>(text.size()) <= max_len) return text;
+    int keep = max_len - 3;          // chars to keep (minus "...")
+    int head = (keep + 1) / 2;       // slightly more on the left
+    int tail = keep - head;
+    return text.substr(0, head) + "..." + text.substr(text.size() - tail);
 }
 
 /// Compute the health bar fill color for the given ratio [0, 1].

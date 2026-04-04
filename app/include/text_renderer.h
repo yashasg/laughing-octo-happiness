@@ -21,7 +21,7 @@ public:
     void draw_model_name(const std::string& model_name) const;
 
 private:
-    Font m_font{};        // speech bubble text (15pt)
-    Font m_small_font{};  // model name (14pt)
+    Font m_font{};        // speech bubble text (16pt)
+    Font m_small_font{};  // model name (16pt)
     bool m_fonts_loaded = false;
 };

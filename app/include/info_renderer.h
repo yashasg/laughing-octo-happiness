@@ -14,9 +14,10 @@ public:
     /// If font_path is empty, a system font is discovered automatically.
     void load(const std::string& font_path = "");
 
-    /// Draw the "Context" label and the green→yellow→red health bar.
+    /// Draw the context label and the green→yellow→red health bar.
     /// ratio should be in [0, 1] (clamped internally).
-    void draw(float context_ratio) const;
+    /// When token_limit > 0, shows "45k / 200k" instead of "Context".
+    void draw(float context_ratio, size_t current_tokens = 0, size_t token_limit = 0) const;
 
 private:
     Font m_label_font{};  // "Context" label (10pt)
