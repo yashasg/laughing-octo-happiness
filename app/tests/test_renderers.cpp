@@ -25,7 +25,7 @@ TEST_F(TextRendererTest, DrawBubbleCallsDrawRectangleRounded) {
 }
 
 TEST_F(TextRendererTest, DrawBubbleCallsDrawTextEx) {
-    renderer.draw_bubble(CopilotStatus::WAITING, "Your turn!");
+    renderer.draw_bubble(CopilotStatus::WAITING, "Waiting on you!");
     EXPECT_TRUE(mock_was_called("DrawTextEx"));
 }
 

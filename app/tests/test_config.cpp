@@ -9,7 +9,7 @@ TEST(StatusLabel, Idle) {
 }
 
 TEST(StatusLabel, Waiting) {
-    EXPECT_STREQ(status_label(CopilotStatus::WAITING), "Your turn!");
+    EXPECT_STREQ(status_label(CopilotStatus::WAITING), "Waiting on you!");
 }
 
 TEST(StatusLabel, Busy) {
