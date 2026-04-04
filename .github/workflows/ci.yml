@@ -9,7 +9,7 @@ on:
 jobs:
   build-linux:
     name: Build (Linux)
-    runs-on: self-hosted
+    runs-on: Linux
     permissions:
       checks: write
       pull-requests: write
@@ -90,7 +90,7 @@ jobs:
 
   build-windows:
     name: Build (Windows)
-    runs-on: windows-latest
+    runs-on: Windows
     permissions:
       checks: write
       pull-requests: write
