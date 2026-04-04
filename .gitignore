@@ -31,7 +31,6 @@ copilot-buddy.exe
 *.exp
 
 # IDE files
-.vscode/
 .idea/
 *.xcodeproj/
 *.xcworkspace/
