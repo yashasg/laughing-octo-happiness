@@ -35,21 +35,18 @@ jobs:
             libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev \
             libgl1-mesa-dev libglu1-mesa-dev
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.x'
-
-      - name: Ensure python command exists
-        run: |
-          if ! command -v python >/dev/null; then
-            sudo ln -s "$(which python3)" /usr/local/bin/python
-          fi
-
       - name: Setup GoogleTest
-        uses: Bacondish2023/setup-googletest@v1
-        with:
-          tag: v1.14.0
+        run: |
+          if [ -f /usr/local/lib/libgtest.a ] || [ -f /usr/lib/libgtest.a ]; then
+            echo "GoogleTest already installed, skipping."
+          else
+            cd /tmp
+            curl -sL https://github.com/google/googletest/archive/refs/tags/v1.14.0.tar.gz | tar -xz
+            cmake -S googletest-1.14.0 -B googletest-1.14.0/build -DCMAKE_BUILD_TYPE=Release
+            cmake --build googletest-1.14.0/build
+            sudo cmake --install googletest-1.14.0/build
+            rm -rf /tmp/googletest-1.14.0
+          fi
 
       - name: Build
         run: |
