@@ -137,12 +137,6 @@ if(CMAKE_BUILD_TYPE STREQUAL "Release" OR CMAKE_BUILD_TYPE STREQUAL "MinSizeRel"
         target_compile_options(copilot-buddy PRIVATE -flto)
         target_link_options(copilot-buddy PRIVATE -flto -Wl,--gc-sections)
     endif()
-    # Strip debug/local symbols from the final binary
-    if(CMAKE_STRIP)
-        add_custom_command(TARGET copilot-buddy POST_BUILD
-            COMMAND ${CMAKE_STRIP} $<TARGET_FILE:copilot-buddy>
-            COMMENT "Stripping debug symbols")
-    endif()
 endif()
 
 # ---------- Tests ----------
