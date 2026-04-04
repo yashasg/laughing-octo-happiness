@@ -1,0 +1,18 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug copilot-buddy",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/app/build/copilot-buddy",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}/app/build",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "lldb",
+            "preLaunchTask": "cmake-build-debug"
+        }
+    ]
+}

@@ -1,0 +1,68 @@
+name: CI (Windows)
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    name: Build (Windows)
+    runs-on: Windows
+    permissions:
+      contents: read
+      checks: write
+      pull-requests: write
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: false
+          cache: true
+          install: >-
+            mingw-w64-x86_64-clang
+            mingw-w64-x86_64-lld
+            mingw-w64-x86_64-cmake
+            mingw-w64-x86_64-gtest
+
+      - name: Build
+        run: ./build.sh -build-only
+
+      - name: Run tests
+        id: run-tests
+        run: |
+          TEST_BIN="app/build/tests/copilot-buddy-tests"
+          [ -f "${TEST_BIN}.exe" ] && TEST_BIN="${TEST_BIN}.exe"
+          RESULTS_PATH="$(cygpath -w app/build)/test-results.xml"
+          "$TEST_BIN" --gtest_output="xml:$RESULTS_PATH"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: copilot-buddy-windows
+          path: app/build/copilot-buddy.exe
+
+      - name: Convert test results to CTRF
+        if: always()
+        run: npx junit-to-ctrf app/build/test-results.xml -o ctrf/results.json
+        shell: cmd
+
+      - name: Report test results
+        if: always()
+        uses: ctrf-io/github-test-reporter@v1
+        with:
+          report-path: 'ctrf/*.json'
+          pull-request-report: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

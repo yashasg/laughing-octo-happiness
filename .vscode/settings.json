@@ -1,0 +1,36 @@
+{
+    "files.exclude": {
+        "app/.cache": true
+    },
+    "files.watcherExclude": {
+        "**/app/.cache/**": true
+    },
+    "cmake.sourceDirectory": "${workspaceFolder}/app",
+    "cmake.buildDirectory": "${workspaceFolder}/app/build",
+
+    // clangd: point at compile_commands.json for accurate IntelliSense + semantic highlighting
+    "clangd.arguments": [
+        "--compile-commands-dir=${workspaceFolder}/app/build",
+        "--background-index",
+        "--clang-tidy",
+        "--header-insertion=never"
+    ],
+
+    // Disable cpptools IntelliSense engine to avoid conflicts with clangd
+    "C_Cpp.intelliSenseEngine": "disabled",
+
+    // Ensure semantic token coloring is active
+    "editor.semanticHighlighting.enabled": true,
+
+    // Explicit colors for C++ semantic tokens (clangd-provided)
+    "editor.semanticTokenColorCustomizations": {
+        "rules": {
+            "class": "#4EC9B0",
+            "class.declaration": "#4EC9B0",
+            "enum": "#B8D7A3",
+            "enumMember": "#B8D7A3",
+            "type": "#4EC9B0",
+            "namespace": "#C8C8C8"
+        }
+    }
+}

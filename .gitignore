@@ -1,27 +1,43 @@
-# Virtual environments
-.venv/
-venv/
-env/
-ENV/
+# FetchContent / CMake download cache
+app/build/
+app/build-tests/
+app/.cache/
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+compile_commands.json
+*.cmake
+!app/CMakeLists.txt
+!app/tests/CMakeLists.txt
 
-# Python bytecode
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
+# Test results
+test-results.xml
 
-# Environment variables
-.env
+# Google Test FetchContent cache
+_deps/
 
-# Packaging
-*.egg-info/
-dist/
-build/
+# Compiled binaries
+copilot-buddy
+copilot-buddy.exe
+*.o
+*.obj
+*.a
+*.lib
+*.so
+*.dylib
+*.dll
+*.pdb
+*.ilk
+*.exp
 
 # IDE files
-.vscode/
 .idea/
+*.xcodeproj/
+*.xcworkspace/
 
 # OS files
 Thumbs.db
 .DS_Store
+
+# Environment variables
+.env
