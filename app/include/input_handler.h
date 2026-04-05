@@ -32,7 +32,7 @@ private:
 
     std::vector<KeyCallback> m_key_callbacks;
     bool    m_dragging        = false;
-    Vector2 m_drag_start      = {0.f, 0.f};
+    Vector2 m_drag_anchor     = {0.f, 0.f};  // click offset within window
     int     m_topmost_counter = 0;
 
     /// Allow tests to fire key events without going through raylib.

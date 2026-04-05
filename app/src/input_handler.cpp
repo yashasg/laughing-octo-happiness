@@ -44,20 +44,19 @@ void InputHandler::process() {
         if (IsKeyPressed(key)) fire_key_pressed(key);
     }
 
-    // Drag-to-move
+    // Drag-to-move — anchor the click point and keep it under the cursor
     if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
-        m_dragging   = true;
-        m_drag_start = GetMousePosition();
+        m_dragging    = true;
+        m_drag_anchor = GetMousePosition();
     }
     if (IsMouseButtonReleased(MOUSE_LEFT_BUTTON)) {
         m_dragging = false;
     }
     if (m_dragging) {
         Vector2 mouse = GetMousePosition();
-        Vector2 delta = {mouse.x - m_drag_start.x, mouse.y - m_drag_start.y};
-        Vector2 pos   = GetWindowPosition();
-        SetWindowPosition(static_cast<int>(pos.x + delta.x),
-                          static_cast<int>(pos.y + delta.y));
+        Vector2 win   = GetWindowPosition();
+        SetWindowPosition(static_cast<int>(win.x + mouse.x - m_drag_anchor.x),
+                          static_cast<int>(win.y + mouse.y - m_drag_anchor.y));
     }
 
     // Re-assert topmost every ~90 frames (~3 s at 30 fps) to stay above other windows.
