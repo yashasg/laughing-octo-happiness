@@ -55,7 +55,7 @@ jobs:
 
       - name: Run tests
         id: run-tests
-        run: ctest --test-dir app/build --output-on-failure --output-junit app/build/test-results.xml
+        run: ctest --test-dir app/build --output-on-failure --output-junit test-results.xml
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
