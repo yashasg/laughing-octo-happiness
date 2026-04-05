@@ -133,9 +133,9 @@ if(CMAKE_BUILD_TYPE STREQUAL "Release" OR CMAKE_BUILD_TYPE STREQUAL "MinSizeRel"
     elseif(WIN32)
         # MinGW clang: use lld for native thin-LTO support (GNU ld's gold
         # plugin fails to load in MSYS2 environments).
-        # -static bundles the GCC/C++ runtime (libgcc_s_seh-1.dll,
-        # libstdc++-6.dll, libwinpthread-1.dll) into the executable so
-        # the binary is self-contained on machines without MSYS2.
+        # -static requests static linking of the GCC/C++ runtimes when
+        # available, avoiding runtime dependencies on libgcc_s_seh-1.dll,
+        # libstdc++-6.dll, and libwinpthread-1.dll on machines without MSYS2.
         target_link_options(copilot-buddy PRIVATE -flto=thin -fuse-ld=lld -Wl,--gc-sections -static)
     elseif(UNIX)
         target_link_options(copilot-buddy PRIVATE -flto=thin -Wl,--gc-sections)
