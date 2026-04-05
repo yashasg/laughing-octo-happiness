@@ -25,7 +25,9 @@ add_executable(copilot-buddy-tests
     test_anim_state.cpp
     test_render_logic.cpp
     test_renderers.cpp
+    test_copilot_api.cpp
     raylib_mock.cpp
+    ../src/copilot_api.cpp
     ../src/event_parser.cpp
     ../src/anim_state.cpp
     ../src/sprite_renderer.cpp

@@ -1,4 +1,5 @@
 #include "config.h"
+#include "copilot_api.h"
 #include "status_monitor.h"
 #include "sprite_renderer.h"
 #include "text_renderer.h"
@@ -61,6 +62,10 @@ int main(int argc, char* argv[]) {
     // Acquire auth token before anything touches the Copilot CLI
     ensure_github_token();
 
+    // Fetch accurate model context-window sizes from the GitHub Copilot API.
+    // Falls back gracefully to the hardcoded table in config.h if the call fails.
+    auto dynamic_model_limits = fetch_copilot_model_limits();
+
     // -----------------------------------------------------------------------
     // Window setup
     // -----------------------------------------------------------------------
@@ -117,7 +122,7 @@ int main(int argc, char* argv[]) {
         std::string   model_name  = monitor.model_name();
         size_t        ctx_bytes   = monitor.context_bytes();
         size_t        tok_used    = monitor.current_tokens();
-        size_t        tok_limit   = model_context_limit(model_name);
+        size_t        tok_limit   = model_context_limit(model_name, dynamic_model_limits);
 
         // Prefer real token ratio; fall back to file-size proxy
         float ctx_ratio;

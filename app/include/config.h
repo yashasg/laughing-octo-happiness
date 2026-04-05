@@ -3,6 +3,7 @@
 #include "raylib.h"
 #include <string>
 #include <string_view>
+#include <unordered_map>
 
 // ---------------------------------------------------------------------------
 // Status model
@@ -127,6 +128,17 @@ inline size_t model_context_limit(const std::string& model_id) {
         if (model_id.find(pattern) != std::string::npos) return limit;
     }
     return DEFAULT_CONTEXT_LIMIT;
+}
+
+// Overload: check a dynamically-fetched map first (exact model ID match),
+// then fall back to the hardcoded prefix-pattern table above.
+// Pass the map returned by fetch_copilot_model_limits() from copilot_api.h.
+inline size_t model_context_limit(
+        const std::string& model_id,
+        const std::unordered_map<std::string, size_t>& dynamic_limits) {
+    auto it = dynamic_limits.find(model_id);
+    if (it != dynamic_limits.end()) return it->second;
+    return model_context_limit(model_id);
 }
 
 inline constexpr Color BACKGROUND_COLOR = {0, 0, 0, 50};  // translucent black

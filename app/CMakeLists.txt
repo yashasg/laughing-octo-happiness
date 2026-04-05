@@ -76,6 +76,7 @@ add_library(nlohmann_json::nlohmann_json ALIAS nlohmann_json)
 # ---------- Main executable ----------
 add_executable(copilot-buddy
     src/main.cpp
+    src/copilot_api.cpp
     src/status_monitor.cpp
     src/sprite_renderer.cpp
     src/anim_state.cpp
