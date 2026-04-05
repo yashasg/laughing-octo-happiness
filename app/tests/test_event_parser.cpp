@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 #include "event_parser.h"
+#include <nlohmann/json.hpp>
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -412,5 +413,89 @@ TEST(ParseEvents, DefaultResultForSingleUnknownEvent) {
     EXPECT_TRUE(r.idle_text.empty());
     EXPECT_TRUE(r.model_name.empty());
     EXPECT_EQ(r.current_tokens, 0u);
+    EXPECT_EQ(r.output_tokens_since, 0u);
+}
+
+// ---------------------------------------------------------------------------
+// Sanitization — control chars must be stripped from extracted strings
+// ---------------------------------------------------------------------------
+TEST(ParseEvents, SanitizesControlCharsInIntent) {
+    // Build JSON with actual control char bytes embedded in the intent value
+    std::string intent = std::string("Fix") + '\x01' + '\x02' + " bug";
+    // nlohmann/json can serialize control chars → we construct via the library
+    nlohmann::json j;
+    j["type"] = "tool.execution_start";
+    j["data"]["toolName"] = "report_intent";
+    j["data"]["arguments"]["intent"] = intent;
+    std::string line = j.dump();
+
+    ParseResult r = parse_events({line});
+    EXPECT_EQ(r.status_text.find('\x01'), std::string::npos);
+    EXPECT_EQ(r.status_text.find('\x02'), std::string::npos);
+    EXPECT_NE(r.status_text.find("Fix"), std::string::npos);
+    EXPECT_NE(r.status_text.find("bug"), std::string::npos);
+}
+
+TEST(ParseEvents, SanitizesControlCharsInModelName) {
+    nlohmann::json j;
+    j["type"] = "session.start";
+    j["data"]["selectedModel"] = std::string("claude") + '\n' + "sneaky";
+    ParseResult r = parse_events({j.dump()});
+    EXPECT_EQ(r.model_name.find('\n'), std::string::npos);
+}
+
+TEST(ParseEvents, SanitizesControlCharsInIdleText) {
+    nlohmann::json j;
+    j["type"] = "session.task_complete";
+    j["data"]["summary"] = std::string("Done") + '\r' + '\n' + "with task";
+    ParseResult r = parse_events({j.dump()});
+    EXPECT_EQ(r.idle_text.find('\r'), std::string::npos);
+    EXPECT_EQ(r.idle_text.find('\n'), std::string::npos);
+}
+
+TEST(ParseEvents, SanitizesTabsInIntent) {
+    std::string line = event_with_data("tool.execution_start",
+        R"({"toolName":"report_intent","arguments":{"intent":"Fix\tbug"}})");
+    ParseResult r = parse_events({line});
+    // Tabs should be converted to spaces
+    EXPECT_EQ(r.status_text.find('\t'), std::string::npos);
+    EXPECT_NE(r.status_text.find("Fix"), std::string::npos);
+}
+
+// ---------------------------------------------------------------------------
+// Edge cases — missing or wrong-typed fields in tool.execution_start
+// ---------------------------------------------------------------------------
+TEST(ParseEvents, ToolExecutionStartWithMissingToolName) {
+    // No toolName field — should default to BUSY (not crash)
+    std::string line = event_with_data("tool.execution_start",
+        R"({"arguments":{"command":"ls"}})");
+    ParseResult r = parse_events({line});
+    EXPECT_EQ(r.status, CopilotStatus::BUSY);
+}
+
+TEST(ParseEvents, ToolExecutionStartWithNullToolName) {
+    // BUG: null toolName causes nlohmann::json::value<string>() to throw
+    // type_error because the key exists but can't convert null to string.
+    // The exception propagates out of parse_events (no inner catch).
+    // This test documents the current behavior; ideally it should map to BUSY.
+    std::string line = event_with_data("tool.execution_start",
+        R"({"toolName":null})");
+    EXPECT_ANY_THROW(parse_events({line}));
+}
+
+TEST(ParseEvents, NegativeOutputTokensIgnored) {
+    std::vector<std::string> lines = {
+        event_with_data("assistant.message", R"({"outputTokens":-500})"),
+    };
+    ParseResult r = parse_events(lines);
+    // Negative tokens should not be accumulated (ot > 0 check)
+    EXPECT_EQ(r.output_tokens_since, 0u);
+}
+
+TEST(ParseEvents, ZeroOutputTokensIgnored) {
+    std::vector<std::string> lines = {
+        event_with_data("assistant.message", R"({"outputTokens":0})"),
+    };
+    ParseResult r = parse_events(lines);
     EXPECT_EQ(r.output_tokens_since, 0u);
 }

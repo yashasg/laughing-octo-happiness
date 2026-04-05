@@ -151,3 +151,51 @@ TEST(FontUtils, ReturnsValidPathOrEmpty) {
 TEST(FontUtils, ConsistentResults) {
     EXPECT_EQ(find_system_font(), find_system_font());
 }
+
+// ---------------------------------------------------------------------------
+// TextRenderer — DISCONNECTED status
+// ---------------------------------------------------------------------------
+TEST_F(TextRendererTest, DrawBubbleDisconnectedCallsDrawFunctions) {
+    renderer.draw_bubble(CopilotStatus::DISCONNECTED, "No session");
+    EXPECT_TRUE(mock_was_called("DrawRectangleRounded"));
+    EXPECT_TRUE(mock_was_called("DrawTextEx"));
+    EXPECT_TRUE(mock_was_called("DrawTriangle"));
+}
+
+// ---------------------------------------------------------------------------
+// SpriteRenderer — BUSY status uses different sheet
+// ---------------------------------------------------------------------------
+TEST_F(SpriteRendererTest, DrawWithBusyDoesNotCrash) {
+    renderer.load("", "");
+    EXPECT_NO_FATAL_FAILURE(renderer.draw(CopilotStatus::BUSY));
+}
+
+TEST_F(SpriteRendererTest, DrawWithDisconnectedDoesNotCrash) {
+    renderer.load("", "");
+    EXPECT_NO_FATAL_FAILURE(renderer.draw(CopilotStatus::DISCONNECTED));
+}
+
+// ---------------------------------------------------------------------------
+// InfoRenderer — draw at ratio boundaries
+// ---------------------------------------------------------------------------
+TEST_F(InfoRendererTest, DrawAtFullRatio) {
+    mock_reset();
+    renderer.draw(1.0f);
+    // Background + fill drawn
+    int count = static_cast<int>(
+        std::count(g_mock_calls.begin(), g_mock_calls.end(), "DrawRectangleRounded"));
+    EXPECT_GE(count, 2);
+}
+
+TEST_F(InfoRendererTest, DrawWithOnlyTokenLimitNoCurrentTokens) {
+    // token_limit > 0 but current_tokens == 0 → should show "Context" label
+    mock_reset();
+    renderer.draw(0.3f, 0, 200000);
+    EXPECT_TRUE(mock_was_called("DrawTextEx"));
+}
+
+TEST_F(InfoRendererTest, DrawWithBothTokensZero) {
+    mock_reset();
+    renderer.draw(0.0f, 0, 0);
+    EXPECT_TRUE(mock_was_called("DrawTextEx"));
+}

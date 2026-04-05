@@ -225,3 +225,17 @@ TEST(SanitizeDisplayString, PreservesUTF8Continuation) {
 TEST(SanitizeDisplayString, StripsDEL) {
     EXPECT_EQ(sanitize_display_string("Hello\x7FWorld"), "HelloWorld");
 }
+
+TEST(SanitizeDisplayString, AllControlCharsReturnEmpty) {
+    std::string input = "\x01\x02\x03\x04\x05\x06\x07\x08\x0B\x0C\x0E\x0F";
+    EXPECT_EQ(sanitize_display_string(input), "");
+}
+
+// ---------------------------------------------------------------------------
+// compute_bar_fill_width — clamp above 1.0
+// ---------------------------------------------------------------------------
+TEST(ComputeBarFillWidth, ClampsAboveOne) {
+    float bar_width = static_cast<float>(BAR_WIDTH);
+    float result = compute_bar_fill_width(1.5f, bar_width);
+    EXPECT_FLOAT_EQ(result, bar_width);  // clamped to 1.0 → full width
+}

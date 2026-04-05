@@ -114,3 +114,41 @@ TEST(FindActiveSession, LockFileNameTooShortIsIgnored) {
     std::ofstream(session / "events.jsonl").close();
     EXPECT_TRUE(find_active_session(tmp.path.string()).empty());
 }
+
+// ---------------------------------------------------------------------------
+// Symlink validation (S1: path stays under state_dir)
+// ---------------------------------------------------------------------------
+TEST(FindActiveSession, SymlinkOutsideStateDirIsSkipped) {
+    TempDir state_tmp;  // the "state dir"
+    TempDir outside;    // a dir outside state_dir
+
+    // Create a real session outside the state dir
+    fs::path outside_session = outside.path / "evil-session";
+    fs::create_directories(outside_session);
+    std::ofstream(outside_session / "inuse.pid999.lock").close();
+    std::ofstream(outside_session / "events.jsonl") << R"({"type":"assistant.turn_start"})" << "\n";
+
+    // Create a symlink inside state_dir pointing to the outside session
+    fs::path symlink_path = state_tmp.path / "symlinked";
+    std::error_code ec;
+    fs::create_directory_symlink(outside_session, symlink_path, ec);
+    if (ec) {
+        GTEST_SKIP() << "Cannot create symlinks on this platform: " << ec.message();
+    }
+
+    // The symlink target is outside state_dir — should be skipped
+    std::string result = find_active_session(state_tmp.path.string());
+    EXPECT_TRUE(result.empty());
+}
+
+TEST(FindActiveSession, MultipleLockFilesStillMatches) {
+    TempDir tmp;
+    fs::path session = tmp.path / "multi-lock";
+    fs::create_directories(session);
+    std::ofstream(session / "inuse.pid100.lock").close();
+    std::ofstream(session / "inuse.pid200.lock").close();
+    std::ofstream(session / "events.jsonl").close();
+    std::string result = find_active_session(tmp.path.string());
+    EXPECT_FALSE(result.empty());
+    EXPECT_NE(result.find("multi-lock"), std::string::npos);
+}

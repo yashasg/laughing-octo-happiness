@@ -66,6 +66,15 @@ TEST(BubbleFill, BlendIsCorrect) {
     EXPECT_EQ(fill.a, 255);
 }
 
+TEST(BubbleFill, WaitingBlend) {
+    // WAITING accent {230,190,0,255}
+    Color fill = bubble_fill(CopilotStatus::WAITING);
+    EXPECT_EQ(fill.r, static_cast<unsigned char>(255 * 0.85f + 230 * 0.15f));
+    EXPECT_EQ(fill.g, static_cast<unsigned char>(255 * 0.85f + 190 * 0.15f));
+    EXPECT_EQ(fill.b, static_cast<unsigned char>(255 * 0.85f + 0   * 0.15f));
+    EXPECT_EQ(fill.a, 255);
+}
+
 // ---------------------------------------------------------------------------
 // model_context_limit
 // ---------------------------------------------------------------------------
