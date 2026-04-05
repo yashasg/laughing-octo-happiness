@@ -52,9 +52,13 @@ int main(int argc, char* argv[]) {
     std::cout << "Copilot Buddy (C++) v" COPILOT_BUDDY_VERSION "\n";
 
     bool verbose = false;
+    int smoke_frames = 0;
     for (int i = 1; i < argc; ++i) {
         if (std::string(argv[i]) == "--verbose" || std::string(argv[i]) == "-v") {
             verbose = true;
+        } else if (std::string(argv[i]) == "--smoke" && i + 1 < argc) {
+            smoke_frames = std::atoi(argv[++i]);
+            if (smoke_frames <= 0) smoke_frames = 5;
         }
     }
 
@@ -109,7 +113,9 @@ int main(int argc, char* argv[]) {
     // -----------------------------------------------------------------------
     // Game loop
     // -----------------------------------------------------------------------
+    int frame_count = 0;
     while (!WindowShouldClose()) {
+        if (smoke_frames > 0 && ++frame_count > smoke_frames) break;
 
         // 1. Read status (all thread-safe)
         CopilotStatus status      = monitor.status();
