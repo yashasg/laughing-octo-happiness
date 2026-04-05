@@ -57,6 +57,9 @@ jobs:
         id: run-tests
         run: app/build/tests/copilot-buddy-tests --gtest_output="xml:app/build/test-results.xml"
 
+      - name: Run smoke test
+        run: app/build/tests/copilot-buddy-smoke --smoke 5
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:

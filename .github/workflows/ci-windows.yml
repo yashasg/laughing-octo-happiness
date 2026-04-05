@@ -47,6 +47,12 @@ jobs:
           RESULTS_PATH="$(cygpath -w app/build)/test-results.xml"
           "$TEST_BIN" --gtest_output="xml:$RESULTS_PATH"
 
+      - name: Run smoke test
+        run: |
+          SMOKE_BIN="app/build/tests/copilot-buddy-smoke"
+          [ -f "${SMOKE_BIN}.exe" ] && SMOKE_BIN="${SMOKE_BIN}.exe"
+          "$SMOKE_BIN" --smoke 5
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
