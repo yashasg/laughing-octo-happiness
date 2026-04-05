@@ -63,6 +63,7 @@ gtest_discover_tests(copilot-buddy-tests)
 add_executable(copilot-buddy-smoke
     smoke_mock.cpp
     ../src/main.cpp
+    ../src/auth.cpp
     ../src/status_monitor.cpp
     ../src/sprite_renderer.cpp
     ../src/anim_state.cpp
