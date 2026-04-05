@@ -1,7 +1,9 @@
 #include <gtest/gtest.h>
 #include <algorithm>
+#include <filesystem>
 #include <string>
 #include <vector>
+#include "font_utils.h"
 #include "sprite_renderer.h"
 #include "text_renderer.h"
 #include "info_renderer.h"
@@ -101,4 +103,99 @@ TEST_F(SpriteRendererTest, DrawDoesNotCrashWithMockTexture) {
     // Mock LoadTexture returns id=0; draw_sprite guards against this and skips.
     renderer.load("", "");
     EXPECT_NO_FATAL_FAILURE(renderer.draw(CopilotStatus::IDLE));
+}
+
+TEST_F(SpriteRendererTest, TickDelegatesToAnimState) {
+    renderer.load("", "");
+    // FRAME_RATE=18 >= TARGET_FPS=10: each tick advances one frame
+    renderer.tick(CopilotStatus::IDLE);
+    EXPECT_EQ(renderer.anim_state().frame_index, 1);
+}
+
+TEST_F(SpriteRendererTest, AnimStateGetterReturnsInitialState) {
+    const AnimState& state = renderer.anim_state();
+    EXPECT_EQ(state.frame_index, 0);
+    EXPECT_EQ(state.anim_counter, 0);
+}
+
+// ---------------------------------------------------------------------------
+// TextRenderer — draw_model_name with empty string
+// ---------------------------------------------------------------------------
+TEST_F(TextRendererTest, DrawModelNameWithEmptyString) {
+    // Empty model name should use FALLBACK_MODEL_NAME internally, still call DrawTextEx
+    renderer.draw_model_name("");
+    EXPECT_TRUE(mock_was_called("DrawTextEx"));
+}
+
+// ---------------------------------------------------------------------------
+// InfoRenderer — token formatting through draw
+// ---------------------------------------------------------------------------
+TEST_F(InfoRendererTest, DrawWithTokenCountsCallsDrawTextEx) {
+    // When both current_tokens and token_limit > 0, format_tokens is used
+    mock_reset();
+    renderer.draw(0.5f, 45000, 200000);
+    EXPECT_TRUE(mock_was_called("DrawTextEx"));
+}
+
+// ---------------------------------------------------------------------------
+// Font discovery (font_utils.h)
+// ---------------------------------------------------------------------------
+TEST(FontUtils, ReturnsValidPathOrEmpty) {
+    std::string result = find_system_font();
+    if (!result.empty()) {
+        EXPECT_TRUE(std::filesystem::exists(result))
+            << "find_system_font() returned non-existent path: " << result;
+    }
+}
+
+TEST(FontUtils, ConsistentResults) {
+    EXPECT_EQ(find_system_font(), find_system_font());
+}
+
+// ---------------------------------------------------------------------------
+// TextRenderer — DISCONNECTED status
+// ---------------------------------------------------------------------------
+TEST_F(TextRendererTest, DrawBubbleDisconnectedCallsDrawFunctions) {
+    renderer.draw_bubble(CopilotStatus::DISCONNECTED, "No session");
+    EXPECT_TRUE(mock_was_called("DrawRectangleRounded"));
+    EXPECT_TRUE(mock_was_called("DrawTextEx"));
+    EXPECT_TRUE(mock_was_called("DrawTriangle"));
+}
+
+// ---------------------------------------------------------------------------
+// SpriteRenderer — BUSY status uses different sheet
+// ---------------------------------------------------------------------------
+TEST_F(SpriteRendererTest, DrawWithBusyDoesNotCrash) {
+    renderer.load("", "");
+    EXPECT_NO_FATAL_FAILURE(renderer.draw(CopilotStatus::BUSY));
+}
+
+TEST_F(SpriteRendererTest, DrawWithDisconnectedDoesNotCrash) {
+    renderer.load("", "");
+    EXPECT_NO_FATAL_FAILURE(renderer.draw(CopilotStatus::DISCONNECTED));
+}
+
+// ---------------------------------------------------------------------------
+// InfoRenderer — draw at ratio boundaries
+// ---------------------------------------------------------------------------
+TEST_F(InfoRendererTest, DrawAtFullRatio) {
+    mock_reset();
+    renderer.draw(1.0f);
+    // Background + fill drawn
+    int count = static_cast<int>(
+        std::count(g_mock_calls.begin(), g_mock_calls.end(), "DrawRectangleRounded"));
+    EXPECT_GE(count, 2);
+}
+
+TEST_F(InfoRendererTest, DrawWithOnlyTokenLimitNoCurrentTokens) {
+    // token_limit > 0 but current_tokens == 0 → should show "Context" label
+    mock_reset();
+    renderer.draw(0.3f, 0, 200000);
+    EXPECT_TRUE(mock_was_called("DrawTextEx"));
+}
+
+TEST_F(InfoRendererTest, DrawWithBothTokensZero) {
+    mock_reset();
+    renderer.draw(0.0f, 0, 0);
+    EXPECT_TRUE(mock_was_called("DrawTextEx"));
 }

@@ -7,13 +7,14 @@
 // ---------------------------------------------------------------------------
 // Status model
 // ---------------------------------------------------------------------------
-enum class CopilotStatus { IDLE, WAITING, BUSY };
+enum class CopilotStatus { IDLE, WAITING, BUSY, DISCONNECTED };
 
 inline const char* status_label(CopilotStatus s) {
     switch (s) {
-        case CopilotStatus::IDLE:    return "Zzz...";
-        case CopilotStatus::WAITING: return "Waiting on you!";
-        case CopilotStatus::BUSY:    return "Working...";
+        case CopilotStatus::IDLE:         return "Zzz...";
+        case CopilotStatus::WAITING:      return "Waiting on you!";
+        case CopilotStatus::BUSY:         return "Working...";
+        case CopilotStatus::DISCONNECTED: return "No session";
     }
     return "";
 }
@@ -23,9 +24,10 @@ inline const char* status_label(CopilotStatus s) {
 // ---------------------------------------------------------------------------
 inline Color bubble_color(CopilotStatus s) {
     switch (s) {
-        case CopilotStatus::IDLE:    return {70, 130, 220, 255};   // Blue
-        case CopilotStatus::WAITING: return {230, 190, 0, 255};    // Yellow
-        case CopilotStatus::BUSY:    return {220, 50, 50, 255};   // Red
+        case CopilotStatus::IDLE:         return {70, 130, 220, 255};   // Blue
+        case CopilotStatus::WAITING:      return {230, 190, 0, 255};    // Yellow
+        case CopilotStatus::BUSY:         return {220, 50, 50, 255};    // Red
+        case CopilotStatus::DISCONNECTED: return {120, 120, 130, 255};  // Grey
     }
     return WHITE;
 }
@@ -84,7 +86,7 @@ constexpr int BAR_RADIUS        = 5;
 // Animation
 // ---------------------------------------------------------------------------
 constexpr int FRAME_RATE  = 18;
-constexpr int TARGET_FPS  = 30;   // raylib target FPS (higher than animation FPS for smooth input)
+constexpr int TARGET_FPS  = 10;   // raylib target FPS
 
 // ---------------------------------------------------------------------------
 // Overlay positioning  (offsets from screen edges)
@@ -96,6 +98,9 @@ constexpr int OVERLAY_DEFAULT_Y = -320;
 // Status monitor
 // ---------------------------------------------------------------------------
 constexpr int    POLL_INTERVAL_MS = 2000;
+constexpr int    POLL_BUSY_MS     = 200;     // fast poll when Copilot is actively working
+constexpr int    POLL_IDLE_MS     = 2000;    // slow poll when idle / disconnected
+constexpr int    HEARTBEAT_TIMEOUT_S = 30;   // seconds without new events → IDLE
 constexpr size_t TAIL_READ_BYTES  = 8192;
 
 // Model / context info bar

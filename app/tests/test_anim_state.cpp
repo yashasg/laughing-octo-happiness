@@ -3,11 +3,9 @@
 
 // ---------------------------------------------------------------------------
 // Helper: advance exactly N animation frames by calling tick() enough times.
-// FRAME_RATE=18, TARGET_FPS=30 → first advance fires on tick 2 (18+18=36 >= 30).
+// FRAME_RATE=18, TARGET_FPS=10 → frame advances every tick (18 >= 10).
 // ---------------------------------------------------------------------------
 static void advance_frames(AnimState& s, CopilotStatus status, int frames) {
-    // Each frame advance requires ceil(TARGET_FPS / FRAME_RATE) ticks.
-    // With FRAME_RATE=18, TARGET_FPS=30: 2 ticks per frame advance.
     for (int i = 0; i < frames; ++i) {
         // Keep ticking until frame_index advances once.
         int before = s.frame_index;
@@ -30,28 +28,27 @@ TEST(AnimState, StartsAtFrameZero) {
 }
 
 // ---------------------------------------------------------------------------
-// No advance before threshold
+// Frame advances on first tick (FRAME_RATE=18 >= TARGET_FPS=10)
 // ---------------------------------------------------------------------------
-TEST(AnimState, NoAdvanceBeforeThreshold) {
+TEST(AnimState, AdvancesOnFirstTick) {
     AnimState s;
-    // 1 tick: anim_counter = 18, which is < 30 → no frame advance
+    // 1 tick: counter = 18, 18 >= 10 → advance, counter = 8
     s.tick(CopilotStatus::IDLE);
-    EXPECT_EQ(s.frame_index, 0);
-    EXPECT_EQ(s.anim_counter, 18);
+    EXPECT_EQ(s.frame_index, 1);
+    EXPECT_EQ(s.anim_counter, FRAME_RATE - TARGET_FPS);  // 8
 }
 
 // ---------------------------------------------------------------------------
-// Advances frame after enough ticks
+// Advances frame on every tick when FRAME_RATE >= TARGET_FPS
 // ---------------------------------------------------------------------------
-TEST(AnimState, AdvancesFrameAfterEnoughTicks) {
+TEST(AnimState, AdvancesEveryTick) {
     AnimState s;
-    // tick 1: counter=18 (no advance)
-    s.tick(CopilotStatus::IDLE);
-    EXPECT_EQ(s.frame_index, 0);
-    // tick 2: counter=36 >= 30 → advance; counter becomes 36-30=6
     s.tick(CopilotStatus::IDLE);
     EXPECT_EQ(s.frame_index, 1);
-    EXPECT_EQ(s.anim_counter, 6);
+    s.tick(CopilotStatus::IDLE);
+    EXPECT_EQ(s.frame_index, 2);
+    s.tick(CopilotStatus::IDLE);
+    EXPECT_EQ(s.frame_index, 3);
 }
 
 // ---------------------------------------------------------------------------
@@ -91,25 +88,81 @@ TEST(AnimState, UsesIdleFrameCountWhenIdle) {
 }
 
 // ---------------------------------------------------------------------------
-// Multiple ticks in same frame when FRAME_RATE < TARGET_FPS
+// Counter accumulates remainder correctly across ticks
 // ---------------------------------------------------------------------------
-TEST(AnimState, WaitsForThreshold) {
-    // FRAME_RATE=18, TARGET_FPS=30: need 2 ticks to cross threshold.
+TEST(AnimState, CounterAccumulatesRemainder) {
+    // FRAME_RATE=18, TARGET_FPS=10 → every tick advances a frame.
+    // Tick 1: counter=18, advance, counter=8
+    // Tick 2: counter=26, advance, counter=16
+    // Tick 3: counter=34, advance, counter=24
     AnimState s;
 
-    // After 1 tick: still frame 0
-    s.tick(CopilotStatus::IDLE);
-    EXPECT_EQ(s.frame_index, 0);
-
-    // After 2 ticks: frame advances to 1
     s.tick(CopilotStatus::IDLE);
     EXPECT_EQ(s.frame_index, 1);
+    EXPECT_EQ(s.anim_counter, FRAME_RATE - TARGET_FPS);  // 8
 
-    // After 3 ticks: counter = 6+18=24, still < 30 → frame stays 1
-    s.tick(CopilotStatus::IDLE);
-    EXPECT_EQ(s.frame_index, 1);
-
-    // After 4 ticks: counter = 24+18=42 >= 30 → frame advances to 2
     s.tick(CopilotStatus::IDLE);
     EXPECT_EQ(s.frame_index, 2);
+
+    s.tick(CopilotStatus::IDLE);
+    EXPECT_EQ(s.frame_index, 3);
+}
+
+// ---------------------------------------------------------------------------
+// Zero frame count — must not crash (division by zero guard)
+// ---------------------------------------------------------------------------
+TEST(AnimState, ZeroFrameCountDoesNotCrash) {
+    AnimState s;
+    s.idle_frame_count = 0;
+    s.run_frame_count = 0;
+    for (int i = 0; i < 100; ++i) s.tick(CopilotStatus::IDLE);
+    EXPECT_EQ(s.frame_index, 0);
+    for (int i = 0; i < 100; ++i) s.tick(CopilotStatus::BUSY);
+    EXPECT_EQ(s.frame_index, 0);
+}
+
+// ---------------------------------------------------------------------------
+// WAITING status uses idle frame count (same code path as IDLE)
+// ---------------------------------------------------------------------------
+TEST(AnimState, WaitingUsesIdleFrameCount) {
+    AnimState s;
+    s.idle_frame_count = 3;
+    s.run_frame_count = 5;
+    advance_frames(s, CopilotStatus::WAITING, 3);
+    EXPECT_EQ(s.frame_index, 0);  // wrapped around 3
+}
+
+// ---------------------------------------------------------------------------
+// Status switch mid-animation — frame_index carries over
+// ---------------------------------------------------------------------------
+TEST(AnimState, StatusSwitchMidAnimation) {
+    AnimState s;
+    s.idle_frame_count = 10;
+    s.run_frame_count = 16;
+    advance_frames(s, CopilotStatus::IDLE, 3);
+    EXPECT_EQ(s.frame_index, 3);
+    // Switch to BUSY — frame_index continues, wraps at run_frame_count
+    advance_frames(s, CopilotStatus::BUSY, 1);
+    EXPECT_EQ(s.frame_index, 4);
+}
+
+// ---------------------------------------------------------------------------
+// Single frame count — always stays at 0
+// ---------------------------------------------------------------------------
+TEST(AnimState, SingleFrameCountWrapsImmediately) {
+    AnimState s;
+    s.idle_frame_count = 1;
+    advance_frames(s, CopilotStatus::IDLE, 5);
+    EXPECT_EQ(s.frame_index, 0);  // (0+1)%1 = 0
+}
+
+// ---------------------------------------------------------------------------
+// DISCONNECTED uses idle frame count (same as IDLE/WAITING)
+// ---------------------------------------------------------------------------
+TEST(AnimState, DisconnectedUsesIdleFrameCount) {
+    AnimState s;
+    s.idle_frame_count = 4;
+    s.run_frame_count = 8;
+    advance_frames(s, CopilotStatus::DISCONNECTED, 4);
+    EXPECT_EQ(s.frame_index, 0);  // wrapped around 4
 }

@@ -5,6 +5,23 @@
 #include <string>
 #include <algorithm>
 
+/// Strip non-printable / control characters and enforce a max length.
+/// Keeps only printable ASCII (0x20–0x7E) and common multi-byte UTF-8 sequences.
+inline std::string sanitize_display_string(const std::string& input, size_t max_len = MAX_TEXT_LEN) {
+    std::string out;
+    out.reserve(std::min(input.size(), max_len));
+    for (size_t i = 0; i < input.size() && out.size() < max_len; ++i) {
+        unsigned char c = static_cast<unsigned char>(input[i]);
+        if (c >= 0x20 && c != 0x7F) {   // printable ASCII or UTF-8 continuation
+            out.push_back(static_cast<char>(c));
+        } else if (c == '\t') {
+            out.push_back(' ');          // convert tabs to spaces
+        }
+        // Drop all other control chars (newlines, \0, etc.)
+    }
+    return out;
+}
+
 /// Truncate text to max_len chars using center-ellipsis: "head...tail".
 /// Preserves the beginning (what) and end (target) of longer strings.
 inline std::string truncate_text(const std::string& text, int max_len) {

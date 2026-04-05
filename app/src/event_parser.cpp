@@ -9,6 +9,21 @@
 namespace fs = std::filesystem;
 using json = nlohmann::json;
 
+// Strip non-printable chars and enforce max length (S3: sanitize untrusted strings)
+static std::string sanitize_string(const std::string& input, size_t max_len = 200) {
+    std::string out;
+    out.reserve(std::min(input.size(), max_len));
+    for (size_t i = 0; i < input.size() && out.size() < max_len; ++i) {
+        unsigned char c = static_cast<unsigned char>(input[i]);
+        if (c >= 0x20 && c != 0x7F) {
+            out.push_back(static_cast<char>(c));
+        } else if (c == '\t') {
+            out.push_back(' ');
+        }
+    }
+    return out;
+}
+
 static const std::unordered_map<std::string, CopilotStatus> STATUS_MAP = {
     {"assistant.turn_start",  CopilotStatus::BUSY},
     {"tool.execution_start",  CopilotStatus::BUSY},
@@ -71,7 +86,7 @@ ParseResult parse_events(const std::vector<std::string>& lines) {
                 auto args = data.value("arguments", json::object());
                 std::string intent = args.value("intent", std::string{});
                 if (!intent.empty()) {
-                    result.status_text = std::move(intent);
+                    result.status_text = sanitize_string(intent);
                     found_text         = true;
                 }
             }
@@ -90,7 +105,7 @@ ParseResult parse_events(const std::vector<std::string>& lines) {
         if (!found_idle_text && event_type == "session.task_complete") {
             std::string summary = data.value("summary", std::string{});
             if (!summary.empty()) {
-                result.idle_text   = std::move(summary);
+                result.idle_text   = sanitize_string(summary);
                 found_idle_text    = true;
             }
         }
@@ -98,12 +113,12 @@ ParseResult parse_events(const std::vector<std::string>& lines) {
         // --- Model name: session.model_change has highest priority ---
         if (result.model_name.empty()) {
             if (event_type == "session.model_change") {
-                result.model_name = data.value("newModel", std::string{});
+                result.model_name = sanitize_string(data.value("newModel", std::string{}));
             } else if (event_type == "session.start") {
-                result.model_name = data.value("selectedModel", std::string{});
+                result.model_name = sanitize_string(data.value("selectedModel", std::string{}));
             } else if (event_type == "tool.execution_complete") {
                 std::string model = data.value("model", std::string{});
-                if (!model.empty()) result.model_name = std::move(model);
+                if (!model.empty()) result.model_name = sanitize_string(model);
             }
         }
 
@@ -150,8 +165,24 @@ std::string find_active_session(const std::string& state_dir) {
                 }
                 if (!has_lock) continue;
 
+                // Validate path stays under state_dir (S1: symlink defense)
+                try {
+                    fs::path canonical_path = fs::canonical(entry.path());
+                    fs::path canonical_state = fs::canonical(state_dir);
+                    auto rel = canonical_path.lexically_relative(canonical_state);
+                    if (rel.empty() || rel.string().find("..") == 0) continue;
+                } catch (...) { continue; }
+
                 fs::path events_file = entry.path() / "events.jsonl";
                 if (!fs::exists(events_file)) continue;
+
+                // Validate events file path stays under state_dir (S1)
+                try {
+                    fs::path canonical_events = fs::canonical(events_file);
+                    fs::path canonical_state = fs::canonical(state_dir);
+                    auto rel = canonical_events.lexically_relative(canonical_state);
+                    if (rel.empty() || rel.string().find("..") == 0) continue;
+                } catch (...) { continue; }
 
                 auto mtime = fs::last_write_time(events_file);
                 if (best.empty() || mtime > best_mtime) {

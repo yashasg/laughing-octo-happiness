@@ -170,6 +170,13 @@ size_t StatusMonitor::current_tokens() const {
 }
 
 // ---------------------------------------------------------------------------
+// Adaptive poll interval — fast when BUSY, slow otherwise
+// ---------------------------------------------------------------------------
+int StatusMonitor::current_poll_interval() const {
+    return (m_status.load() == CopilotStatus::BUSY) ? POLL_BUSY_MS : POLL_IDLE_MS;
+}
+
+// ---------------------------------------------------------------------------
 // Background poll loop — sleeps in 50 ms chunks so stop() is responsive
 // ---------------------------------------------------------------------------
 void StatusMonitor::poll_loop() {
@@ -179,7 +186,7 @@ void StatusMonitor::poll_loop() {
         std::this_thread::sleep_for(std::chrono::milliseconds(CHUNK_MS));
         elapsed_ms += CHUNK_MS;
         if (!m_running.load()) break;
-        if (elapsed_ms >= POLL_INTERVAL_MS) {
+        if (elapsed_ms >= current_poll_interval()) {
             elapsed_ms = 0;
             check_and_notify();
         }
@@ -197,8 +204,19 @@ void StatusMonitor::check_and_notify() {
     // parse_session() returns a value — no shared state is mutated.
     std::string session = find_active_session();
     ParsedState parsed;
+
     if (!session.empty()) {
         parsed = parse_session(session);
+
+        // Update heartbeat timestamp when we successfully read a session
+        m_last_event_time_ms.store(
+            std::chrono::duration_cast<std::chrono::milliseconds>(
+                std::chrono::steady_clock::now().time_since_epoch()).count(),
+            std::memory_order_relaxed);
+    } else {
+        // No active session — mark as DISCONNECTED
+        parsed.status = CopilotStatus::DISCONNECTED;
+        parsed.status_text.clear();
     }
 
     // Phase 2: Lock briefly to compare previous state and apply update.
@@ -221,6 +239,16 @@ void StatusMonitor::check_and_notify() {
             if (!parsed.model_name.empty()) m_model_name = std::move(parsed.model_name);
         } else {
             m_idle_text.clear();
+        }
+
+        // Heartbeat timeout: if BUSY for too long without new events, force IDLE
+        if (m_status.load() == CopilotStatus::BUSY) {
+            int64_t now_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+                std::chrono::steady_clock::now().time_since_epoch()).count();
+            int64_t last = m_last_event_time_ms.load(std::memory_order_relaxed);
+            if (last > 0 && (now_ms - last) > static_cast<int64_t>(HEARTBEAT_TIMEOUT_S) * 1000) {
+                m_status.store(CopilotStatus::IDLE);
+            }
         }
 
         new_status = m_status.load();
@@ -329,7 +357,10 @@ StatusMonitor::ParsedState StatusMonitor::parse_session(const std::string& sessi
         }
     } catch (const std::exception& e) {
         std::cerr << "[StatusMonitor] parse_session error: " << e.what() << "\n";
-    } catch (...) {}
+        state.status = CopilotStatus::DISCONNECTED;
+    } catch (...) {
+        state.status = CopilotStatus::DISCONNECTED;
+    }
 
     return state;
 }
