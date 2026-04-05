@@ -45,6 +45,7 @@ private:
     };
 
     void poll_loop();
+    int current_poll_interval() const;
     std::string find_active_session() const;
     ParsedState parse_session(const std::string& session_dir) const;
 
@@ -59,6 +60,7 @@ private:
     std::atomic<size_t> m_current_tokens{0};
 
     std::atomic<bool> m_running{false};
+    std::atomic<int64_t> m_last_event_time_ms{0};
     std::unique_ptr<std::thread> m_poll_thread;
     uint32_t m_watch_id{0};         // dmon_watch_id.id; 0 = not watching
     bool m_dmon_initialized{false}; // true iff dmon_init() has been called

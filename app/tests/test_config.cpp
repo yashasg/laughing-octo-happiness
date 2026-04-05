@@ -94,3 +94,77 @@ TEST(ModelContextLimit, UnknownModelReturnsDefault) {
     EXPECT_EQ(model_context_limit("some-unknown-model"), DEFAULT_CONTEXT_LIMIT);
     EXPECT_EQ(model_context_limit(""), DEFAULT_CONTEXT_LIMIT);
 }
+
+// ---------------------------------------------------------------------------
+// model_context_limit — prefix ordering and edge cases
+// ---------------------------------------------------------------------------
+TEST(ModelContextLimit, ClaudeOpus46NotMistaken1M) {
+    // "claude-opus-4.6" (200k) must not match the "claude-opus-4.6-1m" (1M) entry
+    EXPECT_EQ(model_context_limit("claude-opus-4.6"), 200'000u);
+}
+
+TEST(ModelContextLimit, Gpt41DoesNotMatchGpt4o) {
+    // "gpt-4.1" should match its own 1M entry, not the "gpt-4o" 128k entry
+    EXPECT_EQ(model_context_limit("gpt-4.1"), 1'000'000u);
+}
+
+TEST(ModelContextLimit, MatchesSubstring) {
+    // Model IDs in the wild may carry extra prefixes/suffixes
+    EXPECT_EQ(model_context_limit("some-prefix-claude-sonnet-4.5-suffix"), 200'000u);
+}
+
+// ---------------------------------------------------------------------------
+// Constexpr / layout constants
+// ---------------------------------------------------------------------------
+TEST(BackgroundColor, ConstexprValues) {
+    EXPECT_EQ(BACKGROUND_COLOR.r, 0);
+    EXPECT_EQ(BACKGROUND_COLOR.g, 0);
+    EXPECT_EQ(BACKGROUND_COLOR.b, 0);
+    EXPECT_EQ(BACKGROUND_COLOR.a, 50);
+}
+
+TEST(LayoutConstants, SpriteDerivedValues) {
+    EXPECT_EQ(SPRITE_DISPLAY_W, SPRITE_WIDTH * SPRITE_DISPLAY_SCALE);
+    EXPECT_EQ(SPRITE_DISPLAY_H, SPRITE_HEIGHT * SPRITE_DISPLAY_SCALE);
+    EXPECT_EQ(TRI_TIP_Y, BUBBLE_BOTTOM + TRI_HEIGHT);
+}
+
+// ---------------------------------------------------------------------------
+// DISCONNECTED status
+// ---------------------------------------------------------------------------
+TEST(StatusLabel, Disconnected) {
+    EXPECT_STREQ(status_label(CopilotStatus::DISCONNECTED), "No session");
+}
+
+TEST(BubbleColor, DisconnectedIsGrey) {
+    Color c = bubble_color(CopilotStatus::DISCONNECTED);
+    EXPECT_EQ(c.r, 120);
+    EXPECT_EQ(c.g, 120);
+    EXPECT_EQ(c.b, 130);
+    EXPECT_EQ(c.a, 255);
+}
+
+TEST(BubbleFill, DisconnectedBlend) {
+    Color fill = bubble_fill(CopilotStatus::DISCONNECTED);
+    EXPECT_EQ(fill.r, static_cast<unsigned char>(255 * 0.85f + 120 * 0.15f));
+    EXPECT_EQ(fill.g, static_cast<unsigned char>(255 * 0.85f + 120 * 0.15f));
+    EXPECT_EQ(fill.b, static_cast<unsigned char>(255 * 0.85f + 130 * 0.15f));
+    EXPECT_EQ(fill.a, 255);
+}
+
+// ---------------------------------------------------------------------------
+// New config constants
+// ---------------------------------------------------------------------------
+TEST(PollConstants, AdaptivePolling) {
+    EXPECT_EQ(POLL_BUSY_MS, 200);
+    EXPECT_EQ(POLL_IDLE_MS, 2000);
+    EXPECT_LT(POLL_BUSY_MS, POLL_IDLE_MS);
+}
+
+TEST(PollConstants, HeartbeatTimeout) {
+    EXPECT_EQ(HEARTBEAT_TIMEOUT_S, 30);
+}
+
+TEST(PollConstants, TargetFpsIs10) {
+    EXPECT_EQ(TARGET_FPS, 10);
+}

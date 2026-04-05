@@ -45,11 +45,18 @@ static void ensure_github_token() {
     }
 }
 
-int main() {
+int main(int argc, char* argv[]) {
 #ifndef COPILOT_BUDDY_VERSION
 #define COPILOT_BUDDY_VERSION "dev"
 #endif
     std::cout << "Copilot Buddy (C++) v" COPILOT_BUDDY_VERSION "\n";
+
+    bool verbose = false;
+    for (int i = 1; i < argc; ++i) {
+        if (std::string(argv[i]) == "--verbose" || std::string(argv[i]) == "-v") {
+            verbose = true;
+        }
+    }
 
     // Acquire auth token before anything touches the Copilot CLI
     ensure_github_token();
@@ -89,11 +96,12 @@ int main() {
     // -----------------------------------------------------------------------
     // Status monitor (background threads, thread-safe getters)
     // -----------------------------------------------------------------------
-    StatusMonitor monitor([](CopilotStatus s, const std::string& text) {
-        // Logging only — main loop polls via atomic getters each frame
+    StatusMonitor monitor([verbose](CopilotStatus s, const std::string& text) {
+        if (!verbose) return;
         const char* label = "IDLE";
         if (s == CopilotStatus::WAITING) label = "WAITING";
         else if (s == CopilotStatus::BUSY) label = "BUSY";
+        else if (s == CopilotStatus::DISCONNECTED) label = "DISCONNECTED";
         std::cout << "[status] " << label << " — " << text << "\n";
     });
     monitor.start();
@@ -127,13 +135,12 @@ int main() {
         // 3. Advance animation
         renderer.tick(status);
 
-        // 4. Draw
-        BeginDrawing();
-        ClearBackground(BACKGROUND_COLOR);
-
-        // Bubble text: BUSY shows intent/tool summary, IDLE/WAITING shows task_complete summary
+        // 4. Bubble text: DISCONNECTED shows "No session", BUSY shows intent/tool
+        //    summary, IDLE/WAITING shows task_complete summary
         std::string bubble_text;
-        if (status == CopilotStatus::BUSY) {
+        if (status == CopilotStatus::DISCONNECTED) {
+            bubble_text = status_label(status);
+        } else if (status == CopilotStatus::BUSY) {
             bubble_text = status_text.empty()
                 ? std::string(status_label(status)) : status_text;
         } else {
@@ -142,6 +149,9 @@ int main() {
                 ? std::string(status_label(status)) : idle;
         }
 
+        // 5. Draw
+        BeginDrawing();
+        ClearBackground(BLANK);
         text_renderer.draw_bubble(status, bubble_text);
         renderer.draw(status);
         text_renderer.draw_model_name(model_name);

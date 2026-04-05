@@ -125,3 +125,103 @@ TEST(ComputeBarFillWidth, ClampsBelowZero) {
     float result = compute_bar_fill_width(-1.0f, static_cast<float>(BAR_WIDTH));
     EXPECT_FLOAT_EQ(result, 2.0f * BAR_RADIUS);
 }
+
+// ---------------------------------------------------------------------------
+// truncate_text — additional edge cases
+// ---------------------------------------------------------------------------
+TEST(TruncateText, EmptyStringUnchanged) {
+    EXPECT_EQ(truncate_text("", 30), "");
+}
+
+TEST(TruncateText, MaxLenFlooredToSeven) {
+    // max_len < 7 is floored to 7 internally
+    std::string input = "abcdefghij";  // 10 chars
+    std::string result = truncate_text(input, 3);
+    EXPECT_EQ(static_cast<int>(result.size()), 7);
+    EXPECT_NE(result.find("..."), std::string::npos);
+}
+
+TEST(TruncateText, EightCharsWithMaxLenSeven) {
+    // 8-char input, max_len=7: truncated to exactly 7 with "..."
+    std::string result = truncate_text("abcdefgh", 7);
+    EXPECT_EQ(static_cast<int>(result.size()), 7);
+    EXPECT_NE(result.find("..."), std::string::npos);
+}
+
+// ---------------------------------------------------------------------------
+// compute_bar_color — additional coverage
+// ---------------------------------------------------------------------------
+TEST(ComputeBarColor, AlphaAlways230) {
+    EXPECT_EQ(compute_bar_color(0.0f).a, 230);
+    EXPECT_EQ(compute_bar_color(0.25f).a, 230);
+    EXPECT_EQ(compute_bar_color(0.5f).a, 230);
+    EXPECT_EQ(compute_bar_color(0.75f).a, 230);
+    EXPECT_EQ(compute_bar_color(1.0f).a, 230);
+}
+
+TEST(ComputeBarColor, QuarterRatioIsGreenYellow) {
+    // At 0.25 we're in the green→yellow transition: red increases, green stays 200
+    Color c = compute_bar_color(0.25f);
+    EXPECT_GT(c.r, 80);    // above green's base red
+    EXPECT_LT(c.r, 255);   // below full red
+    EXPECT_EQ(c.g, 200);   // green channel constant in first half
+}
+
+// ---------------------------------------------------------------------------
+// compute_bar_fill_width — additional coverage
+// ---------------------------------------------------------------------------
+TEST(ComputeBarFillWidth, SmallRatioStillMeetsMinimum) {
+    // Very small ratio on a wide bar: result >= 2*BAR_RADIUS
+    float result = compute_bar_fill_width(0.001f, 1000.0f);
+    EXPECT_GE(result, 2.0f * BAR_RADIUS);
+}
+
+// ---------------------------------------------------------------------------
+// sanitize_display_string
+// ---------------------------------------------------------------------------
+TEST(SanitizeDisplayString, PassesThroughCleanText) {
+    EXPECT_EQ(sanitize_display_string("Hello World"), "Hello World");
+}
+
+TEST(SanitizeDisplayString, StripsControlChars) {
+    EXPECT_EQ(sanitize_display_string("Hello\x01\x02World"), "HelloWorld");
+}
+
+TEST(SanitizeDisplayString, StripsNewlines) {
+    EXPECT_EQ(sanitize_display_string("Line1\nLine2\rLine3"), "Line1Line2Line3");
+}
+
+TEST(SanitizeDisplayString, ConvertsTabsToSpaces) {
+    EXPECT_EQ(sanitize_display_string("Hello\tWorld"), "Hello World");
+}
+
+TEST(SanitizeDisplayString, StripsNullBytes) {
+    std::string input = std::string("Hello") + '\0' + "World";
+    EXPECT_EQ(sanitize_display_string(input), "HelloWorld");
+}
+
+TEST(SanitizeDisplayString, EnforcesMaxLength) {
+    std::string long_str(500, 'A');
+    std::string result = sanitize_display_string(long_str, 10);
+    EXPECT_EQ(result.size(), 10u);
+}
+
+TEST(SanitizeDisplayString, DefaultMaxLenIsMAX_TEXT_LEN) {
+    std::string long_str(500, 'A');
+    std::string result = sanitize_display_string(long_str);
+    EXPECT_EQ(result.size(), static_cast<size_t>(MAX_TEXT_LEN));
+}
+
+TEST(SanitizeDisplayString, EmptyStringStaysEmpty) {
+    EXPECT_EQ(sanitize_display_string(""), "");
+}
+
+TEST(SanitizeDisplayString, PreservesUTF8Continuation) {
+    // High bytes (>= 0x80) are kept for UTF-8 multi-byte sequences
+    std::string utf8 = "Hello \xC3\xA9";  // "Hello é"
+    EXPECT_EQ(sanitize_display_string(utf8), utf8);
+}
+
+TEST(SanitizeDisplayString, StripsDEL) {
+    EXPECT_EQ(sanitize_display_string("Hello\x7FWorld"), "HelloWorld");
+}

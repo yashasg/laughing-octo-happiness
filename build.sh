@@ -41,4 +41,8 @@ if [ "$BUILD_TESTS" = "ON" ] && [ "$RUN_TESTS" = "ON" ]; then
     fi
     "$TEST_BIN" --gtest_output="xml:$RESULTS_PATH"
     echo "Tests passed."
+
+    echo "Running ctest..."
+    ctest --test-dir "$BUILD_DIR" --output-on-failure
+    echo "ctest passed."
 fi

@@ -28,4 +28,10 @@ if "%BUILD_TESTS%"=="ON" (
     if errorlevel 1 exit /b 1
 
     echo Tests passed.
+
+    echo Running ctest...
+    ctest --test-dir "%BUILD_DIR%" -C Release --output-on-failure
+    if errorlevel 1 exit /b 1
+
+    echo ctest passed.
 )
