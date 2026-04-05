@@ -25,12 +25,23 @@ void InputHandler::init() {
 }
 
 // ---------------------------------------------------------------------------
+// Event system
+// ---------------------------------------------------------------------------
+void InputHandler::on_key_pressed(KeyCallback callback) {
+    m_key_callbacks.push_back(std::move(callback));
+}
+
+void InputHandler::fire_key_pressed(int key) {
+    for (auto& cb : m_key_callbacks) cb(key);
+}
+
+// ---------------------------------------------------------------------------
 // Per-frame update
 // ---------------------------------------------------------------------------
-bool InputHandler::process() {
-    // Quit on Q or ESC
-    if (IsKeyPressed(KEY_Q) || IsKeyPressed(KEY_ESCAPE)) {
-        return true;
+void InputHandler::process() {
+    // Detect key presses and fire events
+    for (int key : {KEY_Q, KEY_ESCAPE}) {
+        if (IsKeyPressed(key)) fire_key_pressed(key);
     }
 
     // Drag-to-move
@@ -54,6 +65,11 @@ bool InputHandler::process() {
         m_topmost_counter = 0;
         SetWindowState(FLAG_WINDOW_TOPMOST);
     }
+}
 
-    return false;
+// ---------------------------------------------------------------------------
+// Test helper — friend function to fire key events without raylib.
+// ---------------------------------------------------------------------------
+void simulate_key_press(InputHandler& handler, int key) {
+    handler.fire_key_pressed(key);
 }

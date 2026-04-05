@@ -31,18 +31,11 @@ if [ "$BUILD_TESTS" = "ON" ]; then
 fi
 
 if [ "$BUILD_TESTS" = "ON" ] && [ "$RUN_TESTS" = "ON" ]; then
-    TEST_BIN="$BUILD_DIR/tests/copilot-buddy-tests"
-    [ -f "${TEST_BIN}.exe" ] && TEST_BIN="${TEST_BIN}.exe"
-    # Native Windows binaries don't translate POSIX paths; use cygpath if available
     if command -v cygpath >/dev/null 2>&1; then
         RESULTS_PATH="$(cygpath -w "$BUILD_DIR")/test-results.xml"
     else
         RESULTS_PATH="$BUILD_DIR/test-results.xml"
     fi
-    "$TEST_BIN" --gtest_output="xml:$RESULTS_PATH"
+    ctest --test-dir "$BUILD_DIR" --output-on-failure --output-junit "$RESULTS_PATH"
     echo "Tests passed."
-
-    echo "Running ctest..."
-    ctest --test-dir "$BUILD_DIR" --output-on-failure
-    echo "ctest passed."
 fi

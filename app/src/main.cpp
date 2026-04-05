@@ -52,13 +52,9 @@ int main(int argc, char* argv[]) {
     std::cout << "Copilot Buddy (C++) v" COPILOT_BUDDY_VERSION "\n";
 
     bool verbose = false;
-    int smoke_frames = 0;
     for (int i = 1; i < argc; ++i) {
         if (std::string(argv[i]) == "--verbose" || std::string(argv[i]) == "-v") {
             verbose = true;
-        } else if (std::string(argv[i]) == "--smoke" && i + 1 < argc) {
-            smoke_frames = std::atoi(argv[++i]);
-            if (smoke_frames <= 0) smoke_frames = 5;
         }
     }
 
@@ -76,6 +72,10 @@ int main(int argc, char* argv[]) {
 
     // Install raw GLFW right-click callback and set up input handling
     InputHandler input;
+    bool should_quit = false;
+    input.on_key_pressed([&should_quit](int key) {
+        if (key == KEY_ESCAPE || key == KEY_Q) should_quit = true;
+    });
     input.init();
 
     // Position bottom-right of primary monitor
@@ -113,9 +113,7 @@ int main(int argc, char* argv[]) {
     // -----------------------------------------------------------------------
     // Game loop
     // -----------------------------------------------------------------------
-    int frame_count = 0;
-    while (!WindowShouldClose()) {
-        if (smoke_frames > 0 && ++frame_count > smoke_frames) break;
+    while (!WindowShouldClose() && !should_quit) {
 
         // 1. Read status (all thread-safe)
         CopilotStatus status      = monitor.status();
@@ -135,8 +133,8 @@ int main(int argc, char* argv[]) {
                 static_cast<float>(ctx_bytes) / static_cast<float>(CONTEXT_MAX_BYTES));
         }
 
-        // 2. Input (quit, drag-to-move, topmost re-assertion)
-        if (input.process()) break;
+        // 2. Input (fires key events, handles drag-to-move, topmost re-assertion)
+        input.process();
 
         // 3. Advance animation
         renderer.tick(status);

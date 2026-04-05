@@ -98,5 +98,5 @@ elseif(UNIX)
     target_link_libraries(copilot-buddy-smoke PRIVATE Threads::Threads)
 endif()
 
-add_test(NAME smoke COMMAND copilot-buddy-smoke --smoke 5)
+add_test(NAME smoke COMMAND copilot-buddy-smoke)
 set_tests_properties(smoke PROPERTIES TIMEOUT 30)

@@ -6,14 +6,13 @@
 #include "GLFW/glfw3.h"
 
 #include <atomic>
+#include <chrono>
 #include <string>
 #include <vector>
 
-// ---------------------------------------------------------------------------
-// WindowShouldClose frame counter — returns false for N calls, then true.
-// ---------------------------------------------------------------------------
+static std::chrono::steady_clock::time_point g_start_time;
+
 static std::atomic<int> g_frame_counter{0};
-static std::atomic<int> g_max_frames{1000};  // safety limit
 
 // ---------------------------------------------------------------------------
 // Raylib core stubs
@@ -23,13 +22,16 @@ extern "C" {
 void SetConfigFlags(unsigned int flags) { (void)flags; }
 void InitWindow(int width, int height, const char* title) {
     (void)width; (void)height; (void)title;
+    g_start_time = std::chrono::steady_clock::now();
 }
 void CloseWindow(void) {}
 void SetTargetFPS(int fps) { (void)fps; }
 void SetExitKey(int key) { (void)key; }
 
 bool WindowShouldClose(void) {
-    return g_frame_counter.fetch_add(1) >= g_max_frames.load();
+    ++g_frame_counter;
+    auto elapsed = std::chrono::steady_clock::now() - g_start_time;
+    return elapsed >= std::chrono::seconds(10);
 }
 
 void BeginDrawing(void) {}
@@ -44,8 +46,14 @@ void SetWindowState(unsigned int flags) { (void)flags; }
 
 const char* GetApplicationDirectory(void) { return "./"; }
 
-// Input stubs — all return "nothing happened"
-bool IsKeyPressed(int key) { (void)key; return false; }
+// Input stubs — simulate ESC press after 1 second of wall-clock time
+bool IsKeyPressed(int key) {
+    if (key == 256 /* KEY_ESCAPE */) {
+        auto elapsed = std::chrono::steady_clock::now() - g_start_time;
+        if (elapsed >= std::chrono::seconds(1)) return true;
+    }
+    return false;
+}
 bool IsMouseButtonPressed(int button) { (void)button; return false; }
 bool IsMouseButtonReleased(int button) { (void)button; return false; }
 Vector2 GetMousePosition(void) { return {0.0f, 0.0f}; }
