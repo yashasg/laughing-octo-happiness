@@ -130,3 +130,30 @@ inline size_t model_context_limit(const std::string& model_id) {
 }
 
 inline constexpr Color BACKGROUND_COLOR = {0, 0, 0, 50};  // translucent black
+
+// ---------------------------------------------------------------------------
+// Helpers (keep loop body tidy)
+// ---------------------------------------------------------------------------
+
+/// Compute context-window fill ratio (0..1).
+/// Prefers real token counts; falls back to file-size heuristic.
+inline float compute_context_ratio(size_t tok_used, size_t tok_limit,
+                                   size_t ctx_bytes) {
+    if (tok_used > 0) {
+        float r = static_cast<float>(tok_used) / static_cast<float>(tok_limit);
+        return r < 1.0f ? r : 1.0f;
+    }
+    float r = static_cast<float>(ctx_bytes) / static_cast<float>(CONTEXT_MAX_BYTES);
+    return r < 1.0f ? r : 1.0f;
+}
+
+/// Pick the string to show inside the speech bubble.
+inline std::string resolve_bubble_text(CopilotStatus status,
+                                       const std::string& status_text,
+                                       const std::string& idle_text) {
+    if (status == CopilotStatus::DISCONNECTED)
+        return status_label(status);
+    if (status == CopilotStatus::BUSY)
+        return status_text.empty() ? std::string(status_label(status)) : status_text;
+    return idle_text.empty() ? std::string(status_label(status)) : idle_text;
+}
