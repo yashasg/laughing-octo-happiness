@@ -6,8 +6,42 @@
 #include <string>
 #include <vector>
 
+#ifdef _WIN32
+#  define NOGDI
+#  define NOUSER
+#  include <windows.h>
+#endif
+
 namespace fs = std::filesystem;
 using json = nlohmann::json;
+
+// ---------------------------------------------------------------------------
+// Resolve the real path, following symlinks AND junctions.
+// MinGW's fs::canonical() uses _fullpath() which does NOT resolve reparse
+// points (junctions/symlinks). On Windows we need GetFinalPathNameByHandleW.
+// ---------------------------------------------------------------------------
+static fs::path real_path(const fs::path& p) {
+#ifdef _WIN32
+    HANDLE h = CreateFileW(p.wstring().c_str(), 0,
+        FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+        nullptr, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, nullptr);
+    if (h == INVALID_HANDLE_VALUE) return fs::canonical(p);
+
+    wchar_t buf[MAX_PATH + 1];
+    DWORD len = GetFinalPathNameByHandleW(h, buf, MAX_PATH, FILE_NAME_NORMALIZED);
+    CloseHandle(h);
+
+    if (len == 0 || len > MAX_PATH) return fs::canonical(p);
+
+    // Strip the "\\?\" prefix that GetFinalPathNameByHandleW prepends
+    std::wstring result(buf, len);
+    if (result.size() >= 4 && result.substr(0, 4) == L"\\\\?\\")
+        result = result.substr(4);
+    return fs::path(result);
+#else
+    return fs::canonical(p);
+#endif
+}
 
 // Strip non-printable chars and enforce max length (S3: sanitize untrusted strings)
 static std::string sanitize_string(const std::string& input, size_t max_len = 200) {
@@ -165,11 +199,11 @@ std::string find_active_session(const std::string& state_dir) {
                 }
                 if (!has_lock) continue;
 
-                // Validate path stays under state_dir (S1: symlink defense)
+                // Validate path stays under state_dir (S1: symlink/junction defense)
                 try {
-                    fs::path canonical_path = fs::canonical(entry.path());
-                    fs::path canonical_state = fs::canonical(state_dir);
-                    auto rel = canonical_path.lexically_relative(canonical_state);
+                    fs::path resolved_path  = real_path(entry.path());
+                    fs::path resolved_state = real_path(state_dir);
+                    auto rel = resolved_path.lexically_relative(resolved_state);
                     if (rel.empty() || rel.string().find("..") == 0) continue;
                 } catch (...) { continue; }
 
@@ -178,9 +212,9 @@ std::string find_active_session(const std::string& state_dir) {
 
                 // Validate events file path stays under state_dir (S1)
                 try {
-                    fs::path canonical_events = fs::canonical(events_file);
-                    fs::path canonical_state = fs::canonical(state_dir);
-                    auto rel = canonical_events.lexically_relative(canonical_state);
+                    fs::path resolved_events = real_path(events_file);
+                    fs::path resolved_state  = real_path(state_dir);
+                    auto rel = resolved_events.lexically_relative(resolved_state);
                     if (rel.empty() || rel.string().find("..") == 0) continue;
                 } catch (...) { continue; }
 
