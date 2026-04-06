@@ -1,7 +1,7 @@
 ---
 name: 'Test Engineer'
 description: 'Staff-level test engineer expert in GoogleTest, C++17, raylib, and nlohmann/json test coverage analysis'
-tools: ['read', 'edit', 'search', 'execute']
+tools: ['read', 'edit', 'search', 'execute', 'github/*']
 model: 'Claude Sonnet 4.5'
 handoffs:
   - label: Review Changes
