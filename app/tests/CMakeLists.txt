@@ -56,3 +56,48 @@ endif()
 
 include(GoogleTest)
 gtest_discover_tests(copilot-buddy-tests)
+
+# ---------- Smoke test (headless integration) ----------
+# Builds the real main.cpp + all source files against mock raylib/GLFW stubs.
+# Exercises the full startup → game loop → shutdown path without a GPU.
+add_executable(copilot-buddy-smoke
+    smoke_mock.cpp
+    ../src/main.cpp
+    ../src/auth.cpp
+    ../src/status_monitor.cpp
+    ../src/sprite_renderer.cpp
+    ../src/anim_state.cpp
+    ../src/text_renderer.cpp
+    ../src/info_renderer.cpp
+    ../src/input_handler.cpp
+    ../src/event_parser.cpp
+)
+
+target_include_directories(copilot-buddy-smoke PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../externals
+    ${CMAKE_CURRENT_SOURCE_DIR}/../externals/glfw/include
+    ${_RAYLIB_INCLUDE_DIR}
+)
+
+target_link_libraries(copilot-buddy-smoke PRIVATE
+    nlohmann_json::nlohmann_json
+)
+
+target_compile_definitions(copilot-buddy-smoke PRIVATE
+    COPILOT_BUDDY_VERSION="smoke-test"
+)
+
+if(APPLE)
+    target_compile_definitions(copilot-buddy-smoke PRIVATE
+        GL_SILENCE_DEPRECATION
+        _LIBCPP_REMOVE_TRANSITIVE_INCLUDES)
+    target_link_libraries(copilot-buddy-smoke PRIVATE
+        "-framework CoreFoundation" "-framework CoreServices")
+elseif(UNIX)
+    find_package(Threads REQUIRED)
+    target_link_libraries(copilot-buddy-smoke PRIVATE Threads::Threads)
+endif()
+
+add_test(NAME smoke COMMAND copilot-buddy-smoke)
+set_tests_properties(smoke PROPERTIES TIMEOUT 30)

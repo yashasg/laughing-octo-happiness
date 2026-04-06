@@ -24,14 +24,8 @@ if "%BUILD_TESTS%"=="ON" (
     cmake --build "%BUILD_DIR%" --target copilot-buddy-tests --config Release --parallel
     if errorlevel 1 exit /b 1
 
-    "%BUILD_DIR%\tests\Release\copilot-buddy-tests.exe" --gtest_output=xml:"%REPO_ROOT%test-results.xml"
+    ctest --test-dir "%BUILD_DIR%" -C Release --output-on-failure --output-junit "%REPO_ROOT%test-results.xml"
     if errorlevel 1 exit /b 1
 
     echo Tests passed.
-
-    echo Running ctest...
-    ctest --test-dir "%BUILD_DIR%" -C Release --output-on-failure
-    if errorlevel 1 exit /b 1
-
-    echo ctest passed.
 )

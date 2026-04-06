@@ -25,28 +25,38 @@ void InputHandler::init() {
 }
 
 // ---------------------------------------------------------------------------
+// Event system
+// ---------------------------------------------------------------------------
+void InputHandler::on_key_pressed(KeyCallback callback) {
+    m_key_callbacks.push_back(std::move(callback));
+}
+
+void InputHandler::fire_key_pressed(int key) {
+    for (auto& cb : m_key_callbacks) cb(key);
+}
+
+// ---------------------------------------------------------------------------
 // Per-frame update
 // ---------------------------------------------------------------------------
-bool InputHandler::process() {
-    // Quit on Q or ESC
-    if (IsKeyPressed(KEY_Q) || IsKeyPressed(KEY_ESCAPE)) {
-        return true;
+void InputHandler::process() {
+    // Detect key presses and fire events
+    for (int key : {KEY_Q, KEY_ESCAPE}) {
+        if (IsKeyPressed(key)) fire_key_pressed(key);
     }
 
-    // Drag-to-move
+    // Drag-to-move — anchor the click point and keep it under the cursor
     if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
-        m_dragging   = true;
-        m_drag_start = GetMousePosition();
+        m_dragging    = true;
+        m_drag_anchor = GetMousePosition();
     }
     if (IsMouseButtonReleased(MOUSE_LEFT_BUTTON)) {
         m_dragging = false;
     }
     if (m_dragging) {
         Vector2 mouse = GetMousePosition();
-        Vector2 delta = {mouse.x - m_drag_start.x, mouse.y - m_drag_start.y};
-        Vector2 pos   = GetWindowPosition();
-        SetWindowPosition(static_cast<int>(pos.x + delta.x),
-                          static_cast<int>(pos.y + delta.y));
+        Vector2 win   = GetWindowPosition();
+        SetWindowPosition(static_cast<int>(win.x + mouse.x - m_drag_anchor.x),
+                          static_cast<int>(win.y + mouse.y - m_drag_anchor.y));
     }
 
     // Re-assert topmost every ~90 frames (~3 s at 30 fps) to stay above other windows.
@@ -54,6 +64,11 @@ bool InputHandler::process() {
         m_topmost_counter = 0;
         SetWindowState(FLAG_WINDOW_TOPMOST);
     }
+}
 
-    return false;
+// ---------------------------------------------------------------------------
+// Test helper — friend function to fire key events without raylib.
+// ---------------------------------------------------------------------------
+void simulate_key_press(InputHandler& handler, int key) {
+    handler.fire_key_pressed(key);
 }

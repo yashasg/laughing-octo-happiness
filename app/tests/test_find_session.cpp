@@ -118,6 +118,20 @@ TEST(FindActiveSession, LockFileNameTooShortIsIgnored) {
 // ---------------------------------------------------------------------------
 // Symlink validation (S1: path stays under state_dir)
 // ---------------------------------------------------------------------------
+// Create a directory link (symlink on Unix, junction on Windows).
+// Junctions don't require admin privileges, unlike Windows symlinks.
+static bool create_dir_link(const fs::path& target, const fs::path& link) {
+#ifdef _WIN32
+    std::string cmd = "cmd /c mklink /J \"" + link.string()
+                    + "\" \"" + target.string() + "\" >nul 2>&1";
+    return system(cmd.c_str()) == 0;
+#else
+    std::error_code ec;
+    fs::create_directory_symlink(target, link, ec);
+    return !ec;
+#endif
+}
+
 TEST(FindActiveSession, SymlinkOutsideStateDirIsSkipped) {
     TempDir state_tmp;  // the "state dir"
     TempDir outside;    // a dir outside state_dir
@@ -128,15 +142,13 @@ TEST(FindActiveSession, SymlinkOutsideStateDirIsSkipped) {
     std::ofstream(outside_session / "inuse.pid999.lock").close();
     std::ofstream(outside_session / "events.jsonl") << R"({"type":"assistant.turn_start"})" << "\n";
 
-    // Create a symlink inside state_dir pointing to the outside session
-    fs::path symlink_path = state_tmp.path / "symlinked";
-    std::error_code ec;
-    fs::create_directory_symlink(outside_session, symlink_path, ec);
-    if (ec) {
-        GTEST_SKIP() << "Cannot create symlinks on this platform: " << ec.message();
+    // Create a link inside state_dir pointing to the outside session
+    fs::path link_path = state_tmp.path / "symlinked";
+    if (!create_dir_link(outside_session, link_path)) {
+        GTEST_SKIP() << "Cannot create directory links on this platform";
     }
 
-    // The symlink target is outside state_dir — should be skipped
+    // The link target is outside state_dir — should be skipped
     std::string result = find_active_session(state_tmp.path.string());
     EXPECT_TRUE(result.empty());
 }
