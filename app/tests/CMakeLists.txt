@@ -49,6 +49,12 @@ if(APPLE)
     target_compile_definitions(copilot-buddy-tests PRIVATE
         GL_SILENCE_DEPRECATION
         _LIBCPP_REMOVE_TRANSITIVE_INCLUDES)
+elseif(WIN32)
+    target_compile_definitions(copilot-buddy-tests PRIVATE
+        WIN32_LEAN_AND_MEAN
+        NOGDI
+        NOUSER
+    )
 elseif(UNIX)
     find_package(Threads REQUIRED)
     target_link_libraries(copilot-buddy-tests PRIVATE Threads::Threads)
@@ -94,6 +100,12 @@ if(APPLE)
         _LIBCPP_REMOVE_TRANSITIVE_INCLUDES)
     target_link_libraries(copilot-buddy-smoke PRIVATE
         "-framework CoreFoundation" "-framework CoreServices")
+elseif(WIN32)
+    target_compile_definitions(copilot-buddy-smoke PRIVATE
+        WIN32_LEAN_AND_MEAN
+        NOGDI
+        NOUSER
+    )
 elseif(UNIX)
     find_package(Threads REQUIRED)
     target_link_libraries(copilot-buddy-smoke PRIVATE Threads::Threads)

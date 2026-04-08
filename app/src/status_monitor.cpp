@@ -2,9 +2,13 @@
 #include "event_parser.h"
 
 // Prevent Windows SDK headers from redefining names that raylib already defines.
+// NOGDI / NOUSER are passed as compiler flags via CMake; forward-declare MSG/LPMSG
+// here so oleidl.h (pulled in via dmon.h → windows.h) can reference them even
+// though NOUSER has excluded winuser.h (which normally defines them).
 #ifdef _WIN32
-#  define NOGDI   // excludes Rectangle and other GDI names
-#  define NOUSER  // excludes ShowCursor, LoadImage and other USER names
+struct tagMSG;
+typedef struct tagMSG MSG;
+typedef MSG *LPMSG;
 #endif
 #define DMON_IMPL
 #include <dmon/dmon.h>

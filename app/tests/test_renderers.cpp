@@ -9,6 +9,7 @@
 #include "info_renderer.h"
 
 extern std::vector<std::string> g_mock_calls;
+extern bool g_mock_texture_valid;
 void mock_reset();
 bool mock_was_called(const std::string& name);
 
@@ -173,6 +174,63 @@ TEST_F(SpriteRendererTest, DrawWithBusyDoesNotCrash) {
 TEST_F(SpriteRendererTest, DrawWithDisconnectedDoesNotCrash) {
     renderer.load("", "");
     EXPECT_NO_FATAL_FAILURE(renderer.draw(CopilotStatus::DISCONNECTED));
+}
+
+// ---------------------------------------------------------------------------
+// SpriteRenderer — valid texture (id > 0) must reach DrawTexturePro
+// This is the critical path that was broken on Windows: when LoadTexture
+// succeeds the draw_sprite guard (sheet.id == 0) must NOT fire, and the
+// sprite must actually be rendered.  The mock flag g_mock_texture_valid
+// simulates a successfully loaded texture.
+// ---------------------------------------------------------------------------
+TEST_F(SpriteRendererTest, DrawCallsDrawTexturePro_WhenTextureValid_Idle) {
+    g_mock_texture_valid = true;
+    renderer.load("IDLE.png", "RUN.png");
+    mock_reset();
+    renderer.draw(CopilotStatus::IDLE);
+    EXPECT_TRUE(mock_was_called("DrawTexturePro"))
+        << "DrawTexturePro must be called when IDLE texture has id > 0";
+}
+
+TEST_F(SpriteRendererTest, DrawCallsDrawTexturePro_WhenTextureValid_Busy) {
+    g_mock_texture_valid = true;
+    renderer.load("IDLE.png", "RUN.png");
+    mock_reset();
+    renderer.draw(CopilotStatus::BUSY);
+    EXPECT_TRUE(mock_was_called("DrawTexturePro"))
+        << "DrawTexturePro must be called when RUN texture has id > 0";
+}
+
+TEST_F(SpriteRendererTest, DrawCallsDrawTexturePro_WhenTextureValid_Waiting) {
+    // WAITING uses the idle sheet (same code path as IDLE)
+    g_mock_texture_valid = true;
+    renderer.load("IDLE.png", "RUN.png");
+    mock_reset();
+    renderer.draw(CopilotStatus::WAITING);
+    EXPECT_TRUE(mock_was_called("DrawTexturePro"))
+        << "DrawTexturePro must be called when WAITING (uses idle sheet, id > 0)";
+}
+
+TEST_F(SpriteRendererTest, DrawSkipsDrawTexturePro_WhenTextureInvalid) {
+    // id == 0 (the default mock) → draw_sprite silently returns early.
+    // This is the path that hid the Windows rendering failure: the sprite
+    // was simply skipped with no error, making it appear as if the avatar
+    // was missing at runtime.
+    renderer.load("", "");
+    mock_reset();
+    renderer.draw(CopilotStatus::IDLE);
+    EXPECT_FALSE(mock_was_called("DrawTexturePro"))
+        << "DrawTexturePro must NOT be called when texture id == 0";
+}
+
+TEST_F(SpriteRendererTest, FrameCountDerivedFromTextureWidth_WhenValid) {
+    // When LoadTexture returns a realistic spritesheet, load() must derive
+    // idle_frame_count from the texture width rather than falling back to
+    // the compile-time constant.
+    g_mock_texture_valid = true;
+    renderer.load("IDLE.png", "RUN.png");
+    // Mock returns width = SPRITE_WIDTH * IDLE_FRAMES
+    EXPECT_EQ(renderer.anim_state().idle_frame_count, IDLE_FRAMES);
 }
 
 // ---------------------------------------------------------------------------

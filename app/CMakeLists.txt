@@ -100,6 +100,19 @@ target_compile_definitions(copilot-buddy PRIVATE
     COPILOT_BUDDY_VERSION="${PROJECT_VERSION}"
 )
 
+# Windows SDK exclusion flags.
+# NOGDI  — prevents gdi.h from declaring Rectangle/BitBlt/etc. that clash with raylib.
+# NOUSER — prevents winuser.h from declaring ShowCursor/LoadImage/etc. that clash with raylib.
+# WIN32_LEAN_AND_MEAN — reduces the set of Windows headers pulled in by windows.h.
+# Defined here as compiler flags so source files stay clean.
+if(WIN32)
+    target_compile_definitions(copilot-buddy PRIVATE
+        WIN32_LEAN_AND_MEAN
+        NOGDI
+        NOUSER
+    )
+endif()
+
 # Copy sprite assets next to binary
 add_custom_command(TARGET copilot-buddy POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
