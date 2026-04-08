@@ -3,6 +3,15 @@
 
 // Prevent Windows SDK headers from redefining names that raylib already defines.
 #ifdef _WIN32
+// Forward-declare MSG/LPMSG so that headers pulled in transitively by
+// windows.h (winscard.h → wtypes.h → ole2.h → oleidl.h) can reference
+// LPMSG even though NOUSER has excluded winuser.h (which normally defines it).
+// NOUSER is still required to prevent winuser.h from declaring
+// ShowCursor(BOOL) / LoadImage() which conflict with the same-named raylib
+// functions already declared via status_monitor.h → config.h → raylib.h.
+struct tagMSG;
+typedef struct tagMSG MSG;
+typedef MSG *LPMSG;
 #  define NOGDI   // excludes Rectangle and other GDI names
 #  define NOUSER  // excludes ShowCursor, LoadImage and other USER names
 #endif

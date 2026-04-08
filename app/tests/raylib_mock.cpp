@@ -1,4 +1,5 @@
 #include "raylib.h"
+#include "config.h"
 #include <string>
 #include <vector>
 #include <algorithm>
@@ -8,7 +9,14 @@
 // ---------------------------------------------------------------------------
 std::vector<std::string> g_mock_calls;
 
-void mock_reset() { g_mock_calls.clear(); }
+/// When true, LoadTexture returns a texture with id=1 and valid dimensions
+/// so that SpriteRenderer::draw_sprite does not early-exit.
+bool g_mock_texture_valid = false;
+
+void mock_reset() {
+    g_mock_calls.clear();
+    g_mock_texture_valid = false;
+}
 
 bool mock_was_called(const std::string& name) {
     return std::find(g_mock_calls.begin(), g_mock_calls.end(), name) != g_mock_calls.end();
@@ -22,6 +30,13 @@ extern "C" {
 Texture2D LoadTexture(const char* fileName) {
     g_mock_calls.push_back("LoadTexture");
     (void)fileName;
+    if (g_mock_texture_valid) {
+        Texture2D t{};
+        t.id     = 1;                              // non-zero → valid texture
+        t.width  = SPRITE_WIDTH * IDLE_FRAMES;     // realistic spritesheet width
+        t.height = SPRITE_HEIGHT;
+        return t;
+    }
     return Texture2D{};
 }
 
