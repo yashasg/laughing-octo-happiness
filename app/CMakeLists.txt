@@ -86,6 +86,17 @@ add_executable(copilot-buddy
     src/event_parser.cpp
 )
 
+# Compile exactly one platform implementation file.
+if(WIN32)
+    target_sources(copilot-buddy PRIVATE src/platform_windows.cpp)
+elseif(APPLE)
+    target_sources(copilot-buddy PRIVATE src/platform_macos.cpp)
+elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    target_sources(copilot-buddy PRIVATE src/platform_linux.cpp)
+else()
+    message(FATAL_ERROR "Unsupported platform: ${CMAKE_SYSTEM_NAME}")
+endif()
+
 target_include_directories(copilot-buddy PRIVATE
     include
     externals

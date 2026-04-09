@@ -1,4 +1,5 @@
 #include "event_parser.h"
+#include "platform.h"
 
 #include <nlohmann/json.hpp>
 #include <filesystem>
@@ -6,46 +7,16 @@
 #include <string>
 #include <vector>
 
-#ifdef _WIN32
-// Forward-declare MSG/LPMSG so that headers pulled in transitively by
-// windows.h (winscard.h → wtypes.h → ole2.h → oleidl.h) can reference
-// LPMSG even though NOUSER has excluded winuser.h (which normally defines it).
-// WIN32_LEAN_AND_MEAN / NOGDI / NOUSER are passed as compiler flags via CMake.
-struct tagMSG;
-typedef struct tagMSG MSG;
-typedef MSG *LPMSG;
-#  include <windows.h>
-#endif
-
 namespace fs = std::filesystem;
 using json = nlohmann::json;
 
 // ---------------------------------------------------------------------------
 // Resolve the real path, following symlinks AND junctions.
-// MinGW's fs::canonical() uses _fullpath() which does NOT resolve reparse
-// points (junctions/symlinks). On Windows we need GetFinalPathNameByHandleW.
+// Delegates to the platform layer (platform_*.cpp) which handles the
+// Windows GetFinalPathNameByHandleW quirk for junction resolution.
 // ---------------------------------------------------------------------------
 static fs::path real_path(const fs::path& p) {
-#ifdef _WIN32
-    HANDLE h = CreateFileW(p.wstring().c_str(), 0,
-        FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
-        nullptr, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, nullptr);
-    if (h == INVALID_HANDLE_VALUE) return fs::canonical(p);
-
-    wchar_t buf[MAX_PATH + 1];
-    DWORD len = GetFinalPathNameByHandleW(h, buf, MAX_PATH, FILE_NAME_NORMALIZED);
-    CloseHandle(h);
-
-    if (len == 0 || len > MAX_PATH) return fs::canonical(p);
-
-    // Strip the "\\?\" prefix that GetFinalPathNameByHandleW prepends
-    std::wstring result(buf, len);
-    if (result.size() >= 4 && result.substr(0, 4) == L"\\\\?\\")
-        result = result.substr(4);
-    return fs::path(result);
-#else
-    return fs::canonical(p);
-#endif
+    return platform::real_path(p);
 }
 
 // Strip non-printable chars and enforce max length (S3: sanitize untrusted strings)

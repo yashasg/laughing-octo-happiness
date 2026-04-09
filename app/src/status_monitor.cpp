@@ -1,5 +1,6 @@
 #include "status_monitor.h"
 #include "event_parser.h"
+#include "platform.h"
 
 // Prevent Windows SDK headers from redefining names that raylib already defines.
 // NOGDI / NOUSER are passed as compiler flags via CMake; forward-declare MSG/LPMSG
@@ -70,31 +71,10 @@ static void dmon_watch_cb(dmon_watch_id /*watch_id*/, dmon_action action,
 // StatusMonitor
 // ---------------------------------------------------------------------------
 
-// ---------------------------------------------------------------------------
-// Resolve the user's home directory portably.
-// Windows: prefers USERPROFILE, falls back to HOMEDRIVE+HOMEPATH.
-// Unix/macOS: uses HOME.
-// ---------------------------------------------------------------------------
-static std::string resolve_home_dir()
-{
-#ifdef _WIN32
-    if (const char* up = std::getenv("USERPROFILE"); up && *up)
-        return up;
-    const char* hd = std::getenv("HOMEDRIVE");
-    const char* hp = std::getenv("HOMEPATH");
-    if (hd && *hd && hp && *hp)
-        return std::string(hd) + hp;
-#else
-    if (const char* home = std::getenv("HOME"); home && *home)
-        return home;
-#endif
-    return {};
-}
-
 StatusMonitor::StatusMonitor(Callback on_change)
     : m_on_change(std::move(on_change))
 {
-    std::string home_dir = resolve_home_dir();
+    std::string home_dir = platform::home_dir();
     if (!home_dir.empty())
         m_state_dir = (fs::path(home_dir) / ".copilot" / "session-state").string();
 }
