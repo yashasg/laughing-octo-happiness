@@ -91,8 +91,10 @@ if(WIN32)
     target_sources(copilot-buddy PRIVATE src/platform_windows.cpp)
 elseif(APPLE)
     target_sources(copilot-buddy PRIVATE src/platform_macos.cpp)
-else()
+elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     target_sources(copilot-buddy PRIVATE src/platform_linux.cpp)
+else()
+    message(FATAL_ERROR "Unsupported platform: ${CMAKE_SYSTEM_NAME}")
 endif()
 
 target_include_directories(copilot-buddy PRIVATE
