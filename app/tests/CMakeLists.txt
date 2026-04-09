@@ -33,6 +33,15 @@ add_executable(copilot-buddy-tests
     ../src/info_renderer.cpp
 )
 
+# Compile exactly one platform implementation file.
+if(WIN32)
+    target_sources(copilot-buddy-tests PRIVATE ../src/platform_windows.cpp)
+elseif(APPLE)
+    target_sources(copilot-buddy-tests PRIVATE ../src/platform_macos.cpp)
+else()
+    target_sources(copilot-buddy-tests PRIVATE ../src/platform_linux.cpp)
+endif()
+
 target_include_directories(copilot-buddy-tests PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
     ${CMAKE_CURRENT_SOURCE_DIR}/../externals
@@ -78,6 +87,15 @@ add_executable(copilot-buddy-smoke
     ../src/input_handler.cpp
     ../src/event_parser.cpp
 )
+
+# Compile exactly one platform implementation file.
+if(WIN32)
+    target_sources(copilot-buddy-smoke PRIVATE ../src/platform_windows.cpp)
+elseif(APPLE)
+    target_sources(copilot-buddy-smoke PRIVATE ../src/platform_macos.cpp)
+else()
+    target_sources(copilot-buddy-smoke PRIVATE ../src/platform_linux.cpp)
+endif()
 
 target_include_directories(copilot-buddy-smoke PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include

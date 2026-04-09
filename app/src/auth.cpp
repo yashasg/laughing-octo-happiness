@@ -1,4 +1,5 @@
 #include "auth.h"
+#include "platform.h"
 
 #include <cstdio>
 #include <cstdlib>
@@ -23,11 +24,7 @@ void ensure_github_token() {
     while (!token.empty() && (token.back() == '\n' || token.back() == '\r' || token.back() == ' '))
         token.pop_back();
     if (!token.empty()) {
-#ifdef _WIN32
-        _putenv_s("COPILOT_GITHUB_TOKEN", token.c_str());
-#else
-        setenv("COPILOT_GITHUB_TOKEN", token.c_str(), 0);
-#endif
+        platform::set_env("COPILOT_GITHUB_TOKEN", token.c_str());
         std::cout << "[auth] Token acquired from gh CLI\n";
     }
 }

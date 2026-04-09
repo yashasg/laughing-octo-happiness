@@ -86,6 +86,15 @@ add_executable(copilot-buddy
     src/event_parser.cpp
 )
 
+# Compile exactly one platform implementation file.
+if(WIN32)
+    target_sources(copilot-buddy PRIVATE src/platform_windows.cpp)
+elseif(APPLE)
+    target_sources(copilot-buddy PRIVATE src/platform_macos.cpp)
+else()
+    target_sources(copilot-buddy PRIVATE src/platform_linux.cpp)
+endif()
+
 target_include_directories(copilot-buddy PRIVATE
     include
     externals
