@@ -38,8 +38,10 @@ if(WIN32)
     target_sources(copilot-buddy-tests PRIVATE ../src/platform_windows.cpp)
 elseif(APPLE)
     target_sources(copilot-buddy-tests PRIVATE ../src/platform_macos.cpp)
-else()
+elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     target_sources(copilot-buddy-tests PRIVATE ../src/platform_linux.cpp)
+else()
+    message(FATAL_ERROR "Unsupported platform for copilot-buddy-tests")
 endif()
 
 target_include_directories(copilot-buddy-tests PRIVATE
